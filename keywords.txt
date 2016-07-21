@@ -2,22 +2,29 @@
 # Datatypes (KEYWORD1)
 #######################################
 
+ZetaRF	KEYWORD1
+Si4455_PartInfo	KEYWORD1
+Si4455_FuncInfo	KEYWORD1
+
 #######################################
 # Methods and Functions (KEYWORD2)
 #######################################
 
-Initialize	KEYWORD2
-StartTX	KEYWORD2
-StartRX	KEYWORD2
-CheckEZConfig	KEYWORD2
+begin	KEYWORD2
+sendPacket	KEYWORD2
+startReceiver	KEYWORD2
+checkTransmitted	KEYWORD2
+checkReceived	KEYWORD2
+readPacket	KEYWORD2
+isTxFifoAlmostEmpty	KEYWORD2
+isRxFifoAlmostFull	KEYWORD2
+readPartInfo	KEYWORD2
+readFuncInfo	KEYWORD2
 
 #######################################
 # Instances (KEYWORD2)
 #######################################
 
-Radio	KEYWORD2
-Si4455_API	KEYWORD2
-Si4455_nIRQ	KEYWORD2
 
 #######################################
 # Constants (LITERAL1)
