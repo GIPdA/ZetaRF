@@ -170,17 +170,19 @@ uint8_t ZetaRF::readPacket(uint8_t *data)
 {
     if (!data) return 0;
 
-    // Read FIFO info to known how many bytes were received
-    //Si4455_FifoInfo &fi = readFifoInfo(0);
-    const uint8_t fifoCount = m_packetLength;//fi.RX_FIFO_COUNT;
+    // Read FIFO info to known how many bytes are pending
+    Si4455_FifoInfo &fi = readFifoInfo(0);
+
+    const bool dataRemaining = (fi.RX_FIFO_COUNT > m_packetLength);
 
     // Read FIFO
-    readRxFifo(data, fifoCount);
+    readRxFifo(data, m_packetLength);
 
-    // Reset FIFO
-    readFifoInfo(0x02);
+    if (dataRemaining) {
+        m_dataAvailableFlag = true;
+    }
 
-    return fifoCount;
+    return m_packetLength;
 }
 
 
