@@ -228,6 +228,10 @@ struct si4455_reply_GET_ADC_READING_map {
     uint8_t  TEMP_INTERCEPT;
 };
 
+struct si4455_reply_PACKET_INFO_map {
+    UU16 LENGTH;
+};
+
 
 /* The union that stores the reply written back to the host registers */
 union si4455_cmd_reply_union
@@ -252,6 +256,7 @@ union si4455_cmd_reply_union
     struct si4455_reply_FRR_C_READ_map                                     FRR_C_READ;
     struct si4455_reply_FRR_D_READ_map                                     FRR_D_READ;
     struct si4455_reply_GET_ADC_READING_map                                GET_ADC_READING;
+    struct si4455_reply_PACKET_INFO_map                                    PACKET_INFO;
 };
 
 #define SI4455_CMD_ID_NOP                                                      0x00

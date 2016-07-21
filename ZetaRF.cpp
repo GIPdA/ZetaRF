@@ -20,19 +20,21 @@ static const uint8_t DefaultRadioConfigurationDataArray[] = RADIO_CONFIGURATION_
 
 
 ZetaRF::ZetaRF(int csPin, int shutdownPin, int irqPin) :
-        m_csPin(csPin),
-        m_sdnPin(shutdownPin),
-        m_irqPin(irqPin),
-        m_ctsWentHigh(0),
-        m_channelNumber(10),
-        m_packetLength(7),
-        m_radioConfigurationDataArray(DefaultRadioConfigurationDataArray)
+    m_csPin(csPin),
+    m_sdnPin(shutdownPin),
+    m_irqPin(irqPin),
+    m_ctsWentHigh(0),
+    m_channelNumber(ZETARF_CHANNEL_NUMBER),
+    m_packetLength(ZETARF_PACKET_LENGTH),
+    m_radioConfigurationDataArray(DefaultRadioConfigurationDataArray)
 {
 }
 
 
-void ZetaRF::begin()
+bool ZetaRF::begin(uint8_t channel)
 {
+    m_channelNumber = channel;
+
     SPI.begin();
 
     pinMode(m_csPin, OUTPUT);
@@ -42,20 +44,163 @@ void ZetaRF::begin()
     // Power Up the radio chip
     powerUp();
 
+    int retryCount = 10;
     // Load radio configuration
-    while (Success != initialize(m_radioConfigurationDataArray)) {
-        // Error hook
-        //LED4 = !LED4;
-
+    while (initialize(m_radioConfigurationDataArray) != Success && (retryCount--)) {
+        // Wait and retry
         delay(20);
-
-        // Power Up the radio chip
         powerUp();
     }
 
     // Read ITs, clear pending ones
     readInterruptStatus(0, 0, 0);
+
+    if (!retryCount) return false;
+    return true;
 }
+
+
+/*!
+ * Set Radio to TX mode, fixed packet length.
+ * Uses internal channel number set in @begin().
+ *
+ * @param data Pointer to data to send.
+ */
+void ZetaRF::sendPacket(const uint8_t *data)
+{
+    sendPacket(m_channelNumber, data);
+}
+
+/*!
+ * Set Radio to TX mode, fixed packet length.
+ *
+ * @param channel Channel to send data to.
+ * @param data Pointer to data to send.
+ */
+void ZetaRF::sendPacket(uint8_t channel, const uint8_t *data)
+{
+    if (!data) return;
+    // Read ITs, clear pending ones
+    readInterruptStatus(0, 0, 0);
+
+    // Fill the TX fifo with data
+    writeTxFifo(data, m_packetLength);
+
+    // Start sending packet on channel, START immediately, Packet according to PH
+    startTx(channel, 0x30, m_packetLength);
+}
+
+
+/*!
+ * Set Radio to RX mode, fixed packet length.
+ * Uses internal channel number set in @begin().
+ */
+void ZetaRF::startReceiver()
+{
+    startReceiver(m_channelNumber);
+}
+
+/*!
+ * Set Radio to RX mode, fixed packet length.
+ *
+ * @param channel Channel to receive data from.
+ */
+void ZetaRF::startReceiver(uint8_t channel)
+{
+    // Read ITs, clear pending ones
+    readInterruptStatus(0, 0, 0);
+
+    // Start Receiving packet on channel, START immediately, Packet n bytes long
+    startRx(channel, 0, m_packetLength,
+            SI4455_CMD_START_RX_ARG_RXTIMEOUT_STATE_ENUM_RX,
+            SI4455_CMD_START_RX_ARG_RXVALID_STATE_ENUM_RX,
+            SI4455_CMD_START_RX_ARG_RXINVALID_STATE_ENUM_RX);
+}
+
+
+/*!
+ * Checks if the last transmission succeed.
+ */
+bool ZetaRF::checkTransmitted()
+{
+    //if (irqLevel() == false) {
+        readInterruptStatus(0, 0, 0);
+
+        if (m_dataTransmittedFlag) {
+            m_dataTransmittedFlag = false;
+            return true;
+        }
+    //}
+
+    return false;
+}
+
+/*!
+ * Checks if an incomping message was received.
+ */
+bool ZetaRF::checkReceived()
+{
+    //if (irqLevel() == false) {
+        readInterruptStatus(0, 0, 0);
+
+        if (m_dataAvailableFlag) {
+            m_dataAvailableFlag = false;
+            return true;
+        }
+    //}
+
+    return false;
+}
+
+/*!
+ * Read packet from Rx FIFO.
+ * @a data must point to a valid array with a size of at least the packet length.
+ */
+uint8_t ZetaRF::readPacket(uint8_t *data)
+{
+    if (!data) return 0;
+
+    // Read FIFO info to known how many bytes were received
+    //Si4455_FifoInfo &fi = readFifoInfo(0);
+    const uint8_t fifoCount = m_packetLength;//fi.RX_FIFO_COUNT;
+
+    // Read FIFO
+    readRxFifo(data, fifoCount);
+
+    // Reset FIFO
+    readFifoInfo(0x02);
+
+    return fifoCount;
+}
+
+
+bool ZetaRF::isTxFifoAlmostEmpty()
+{
+    if (irqLevel() == false) {
+        readInterruptStatus(0, 0, 0);
+
+        if (m_txFifoAlmostEmptyFlag) {
+            m_txFifoAlmostEmptyFlag = false;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool ZetaRF::isRxFifoAlmostFull()
+{
+    if (irqLevel() == false) {
+        readInterruptStatus(0, 0, 0);
+        
+        if (m_rxFifoAlmostFullFlag) {
+            m_rxFifoAlmostFullFlag = false;
+            return true;
+        }
+    }
+    return false;
+}
+
+
 
 /*!
  *  Power up the chip.
@@ -70,122 +215,9 @@ void ZetaRF::powerUp()
   delay(100);
 }
 
-
-
 /*!
- *  Set Radio to TX mode, fixed packet length.
- *
- *  @param channel Freq. Channel, Packet to be sent
+ * Hardware reset the chip using shutdown input
  */
-void ZetaRF::sendData(uint8_t channel, uint8_t *data, uint8_t count)
-{
-  // Read ITs, clear pending ones
-  readInterruptStatus(0, 0, 0);
-
-  // Fill the TX fifo with data
-  writeTxFifo(data, count);
-
-  // Start sending packet on channel, START immediately, Packet according to PH
-  startTx(channel, 0x30, count);
-}
-
-void ZetaRF::sendPacket(uint8_t channel, uint8_t *data)
-{
-  // Read ITs, clear pending ones
-  readInterruptStatus(0, 0, 0);
-
-  // Fill the TX fifo with data
-  writeTxFifo(data, m_packetLength);
-
-  // Start sending packet on channel, START immediately, Packet according to PH
-  startTx(channel, 0x30, m_packetLength);
-}
-
-/*!
- *  Set Radio to RX mode, fixed packet length.
- *
- *  @param channel Freq. Channel
- *
- *  @note
- *
- */
-void ZetaRF::startReceiver(uint8_t channel)
-{
-  // Read ITs, clear pending ones
-  readInterruptStatus(0, 0, 0);
-
-  // Start Receiving packet on channel, START immediately, Packet n bytes long
-  startRx(channel, 0, m_packetLength,
-          SI4455_CMD_START_RX_ARG_RXTIMEOUT_STATE_ENUM_RX,
-          SI4455_CMD_START_RX_ARG_RXVALID_STATE_ENUM_RX,
-          SI4455_CMD_START_RX_ARG_RXINVALID_STATE_ENUM_RX);
-}
-
-void ZetaRF::startReceiver(uint8_t channel, uint8_t byteCount)
-{
-  // Read ITs, clear pending ones
-  readInterruptStatus(0, 0, 0);
-
-  // Start Receiving packet on channel, START immediately, Packet n bytes long
-  startRx(channel, 0, byteCount,
-          SI4455_CMD_START_RX_ARG_RXTIMEOUT_STATE_ENUM_RX,
-          SI4455_CMD_START_RX_ARG_RXVALID_STATE_ENUM_RX,
-          SI4455_CMD_START_RX_ARG_RXINVALID_STATE_ENUM_RX);
-}
-
-
-bool ZetaRF::checkTransmitted()
-{
-  if (irqLevel() == false) {
-    // Read ITs, clear pending ones
-    const Si4455_InterruptStatus &it = readInterruptStatus(0, 0, 0);
-
-    // Check the reason for the IT
-    if (it.PH_PEND & SI4455_CMD_GET_INT_STATUS_REP_PACKET_SENT_PEND_BIT) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-bool ZetaRF::checkReceived()
-{
-    if (irqLevel() == false) {
-        // Read ITs, clear pending ones
-        const Si4455_InterruptStatus &it = readInterruptStatus(0, 0, 0);
-
-        // Check the reason for the IT
-        if (it.PH_PEND & SI4455_CMD_GET_INT_STATUS_REP_PACKET_RX_PEND_BIT) {
-            // Read FIFO info to known how many bytes were received
-            Si4455_FifoInfo &fi = readFifoInfo(0);
-            Serial.print("fifo rx count: ");
-            Serial.println(fi.RX_FIFO_COUNT);
-
-            // Packet RX
-            uint8_t fixRadioPacket[16];
-            readRxFifo(fixRadioPacket, fi.RX_FIFO_COUNT);
-
-            Serial.write(fixRadioPacket, fi.RX_FIFO_COUNT);
-            Serial.print('\n');
-
-            return true;
-        }
-
-        // Reset FIFO
-        readFifoInfo(0x02);
-    }
-
-    return false;
-}
-
-
-
-
-
-
-
-
 void ZetaRF::reset()
 {
     // Put radio in shutdown, wait then release
@@ -196,14 +228,17 @@ void ZetaRF::reset()
     clearCts();
 }
 
+/*!
+ * Load all properties and commands with a list of NULL terminated commands.
+ * Call @reset before.
+ */
 ZetaRF::CommandResult ZetaRF::initialize(const uint8_t* configArray)
 {
     // While cycle as far as the pointer points to a command
     while (*configArray != 0x00) {
-        /* Commands structure in the array:
-        * --------------------------------
-        * LEN | <LEN length of data>
-        */
+        // Commands structure in the array:
+        // --------------------------------
+        // LEN | <LEN length of data>
 
         uint8_t cmdBytesCount = *configArray++;
 
@@ -212,6 +247,7 @@ ZetaRF::CommandResult ZetaRF::initialize(const uint8_t* configArray)
             if (*configArray == SI4455_CMD_ID_WRITE_TX_FIFO) {
                 if (cmdBytesCount > 128u) {
                     // Number of command bytes exceeds maximal allowable length
+                    // @todo May need to send NOP to send more than 128 bytes (check documentation)
                     return CommandError;
                 }
 
@@ -224,15 +260,14 @@ ZetaRF::CommandResult ZetaRF::initialize(const uint8_t* configArray)
 
                 // Continue command interpreter
                 continue;
-            }
-            else {
+            } else {
                 // Number of command bytes exceeds maximal allowable length
                 return CommandError;
             }
         }
 
         uint8_t radioCmd[16];
-        for (uint8_t col = 0u; col < cmdBytesCount; col++) {
+        for (uint8_t col = 0; col < cmdBytesCount; col++) {
             radioCmd[col] = *configArray;
             configArray++;
         }
@@ -263,11 +298,17 @@ ZetaRF::CommandResult ZetaRF::initialize(const uint8_t* configArray)
     return Success;
 }
 
+/*!
+ * Writes data byte(s) to the EZConfig array (array generated from EZConfig tool).
+ */
 void ZetaRF::writeEZConfigArray(const uint8_t* ezConfigArray, uint8_t count)
 {
     writeData(SI4455_CMD_ID_WRITE_TX_FIFO, ezConfigArray, count, true);
 }
 
+/*!
+ * Validates the EZConfig array was written correctly.
+ */
 uint8_t ZetaRF::checkEZConfig(uint16_t checksum)
 {
     // Do not check CTS
@@ -289,27 +330,66 @@ uint8_t ZetaRF::checkEZConfig(uint16_t checksum)
     return data;
 }
 
-void ZetaRF::startTx(uint8_t channel, uint8_t condition, uint16_t count)
+/*!
+ * Switches to TX state and starts transmission of a packet.
+ */
+void ZetaRF::startTx(uint8_t channel, uint8_t condition, uint16_t length)
 {
     const uint8_t buffer[] = {
         SI4455_CMD_ID_START_TX,
         channel,
         condition,
-        (uint8_t)(count >> 8),
-        (uint8_t)(count)
+        (uint8_t)(length >> 8),
+        (uint8_t)(length)
     };
 
     sendCommand(buffer, SI4455_CMD_ARG_COUNT_START_TX);
 }
 
-void ZetaRF::startRx(uint8_t channel, uint8_t condition, uint16_t count, uint8_t nextState1, uint8_t nextState2, uint8_t nextState3)
+/*!
+ * Writes data byte(s) to the TX FIFO.
+ */
+void ZetaRF::writeTxFifo(const uint8_t* data, uint8_t length)
+{
+    writeData(SI4455_CMD_ID_WRITE_TX_FIFO, data, length, false);
+}
+
+/*!
+ * Returns the interrupt status of the Modem Interrupt Group (both STATUS and PENDING).
+ * Optionally, it may be used to clear latched (PENDING) interrupt events.
+ */
+Si4455_ModemStatus& ZetaRF::readModemStatus(uint8_t clearPendingModem)
+{
+    const uint8_t buffer[] = {
+        SI4455_CMD_ID_GET_MODEM_STATUS,
+        clearPendingModem
+    };
+
+    sendCommandAndGetResponse(buffer, SI4455_CMD_ARG_COUNT_GET_MODEM_STATUS,
+                              m_commandReply.RAW, SI4455_CMD_REPLY_COUNT_GET_MODEM_STATUS);
+    return m_commandReply.GET_MODEM_STATUS;
+
+    // Si4455Cmd.GET_MODEM_STATUS.MODEM_PEND   = radioCmd[0];
+    // Si4455Cmd.GET_MODEM_STATUS.MODEM_STATUS = radioCmd[1];
+    // Si4455Cmd.GET_MODEM_STATUS.CURR_RSSI    = radioCmd[2];
+    // Si4455Cmd.GET_MODEM_STATUS.LATCH_RSSI   = radioCmd[3];
+    // Si4455Cmd.GET_MODEM_STATUS.ANT1_RSSI    = radioCmd[4];
+    // Si4455Cmd.GET_MODEM_STATUS.ANT2_RSSI    = radioCmd[5];
+    // Si4455Cmd.GET_MODEM_STATUS.AFC_FREQ_OFFSET.U8[MSB]  = radioCmd[6];
+    // Si4455Cmd.GET_MODEM_STATUS.AFC_FREQ_OFFSET.U8[LSB]  = radioCmd[7];
+}
+
+/*!
+ * Switches to RX state and starts reception of a packet.
+ */
+void ZetaRF::startRx(uint8_t channel, uint8_t condition, uint16_t length, uint8_t nextState1, uint8_t nextState2, uint8_t nextState3)
 {
     const uint8_t buffer[] = {
         SI4455_CMD_ID_START_RX,
         channel,
         condition,
-        (uint8_t)(count >> 8),
-        (uint8_t)(count),
+        (uint8_t)(length >> 8),
+        (uint8_t)(length),
         nextState1,
         nextState2,
         nextState3
@@ -318,6 +398,18 @@ void ZetaRF::startRx(uint8_t channel, uint8_t condition, uint16_t count, uint8_t
     sendCommand(buffer, SI4455_CMD_ARG_COUNT_START_RX);
 }
 
+/*!
+ * Reads data byte(s) from the RX FIFO.
+ */
+void ZetaRF::readRxFifo(uint8_t* data, uint8_t length)
+{
+    readData(SI4455_CMD_ID_READ_RX_FIFO, data, length, false);
+}
+
+/*!
+ * Returns the interrupt status of ALL the possible interrupt events (both STATUS and PENDING).
+ * Optionally, it may be used to clear latched (PENDING) interrupt events.
+ */
 Si4455_InterruptStatus& ZetaRF::readInterruptStatus(uint8_t clearPendingPH, uint8_t clearPendingModem, uint8_t clearPendingChip)
 {
     const uint8_t buffer[] = {
@@ -329,6 +421,26 @@ Si4455_InterruptStatus& ZetaRF::readInterruptStatus(uint8_t clearPendingPH, uint
 
     sendCommandAndGetResponse(buffer, SI4455_CMD_ARG_COUNT_GET_INT_STATUS,
                               m_commandReply.RAW, SI4455_CMD_REPLY_COUNT_GET_INT_STATUS);
+
+    if (m_commandReply.GET_INT_STATUS.PH_PEND & SI4455_CMD_GET_INT_STATUS_REP_PACKET_SENT_PEND_BIT) {
+        m_dataTransmittedFlag = true;
+    }
+    if (m_commandReply.GET_INT_STATUS.PH_PEND & SI4455_CMD_GET_INT_STATUS_REP_PACKET_RX_PEND_BIT) {
+        // @todo Add circular buffer?
+        m_dataAvailableFlag = true;
+    }
+
+    if (m_commandReply.GET_INT_STATUS.PH_PEND & SI4455_CMD_GET_INT_STATUS_REP_CRC_ERROR_PEND_BIT) {
+        m_crcErrorFlag = true;
+    }
+
+    if (m_commandReply.GET_INT_STATUS.PH_PEND & SI4455_CMD_GET_INT_STATUS_REP_TX_FIFO_ALMOST_EMPTY_PEND_BIT) {
+        m_txFifoAlmostEmptyFlag = true;
+    }
+    if (m_commandReply.GET_INT_STATUS.PH_PEND & SI4455_CMD_GET_INT_STATUS_REP_RX_FIFO_ALMOST_FULL_PEND_BIT) {
+        m_rxFifoAlmostFullFlag = true;
+    }
+
     return m_commandReply.GET_INT_STATUS;
 
     // m_commandReply.GET_INT_STATUS.INT_PEND       = radioCmd[0];
@@ -341,6 +453,9 @@ Si4455_InterruptStatus& ZetaRF::readInterruptStatus(uint8_t clearPendingPH, uint
     // m_commandReply.GET_INT_STATUS.CHIP_STATUS    = radioCmd[7];
 }
 
+/*!
+ * Configures the GPIO pins.
+ */
 Si4455_GpioPinConfig& ZetaRF::configureGpioPins(uint8_t gpio0, uint8_t gpio1, uint8_t gpio2, uint8_t gpio3,
                                                 uint8_t nirq, uint8_t sdo,
                                                 uint8_t genConfig)
@@ -369,99 +484,10 @@ Si4455_GpioPinConfig& ZetaRF::configureGpioPins(uint8_t gpio0, uint8_t gpio1, ui
     // m_commandReply.GPIO_PIN_CFG.GEN_CONFIG   = radioCmd[6];
 }
 
-void ZetaRF::setProperties(uint8_t group, uint8_t count, uint8_t property, ...)
-{
-    va_list argList;
-    uint8_t cmdIndex;
 
-    uint8_t buffer[16] = {    // No more than 16 properties...
-        SI4455_CMD_ID_SET_PROPERTY,
-        group,
-        count,
-        property
-    };
-
-    va_start(argList, property);
-    cmdIndex = 4;
-    while (count--) {
-        buffer[cmdIndex] = (uint8_t)(va_arg(argList, int));
-        cmdIndex++;
-        if (cmdIndex == 15) break;
-    }
-    va_end(argList);
-
-    sendCommand(buffer, cmdIndex);
-}
-
-void ZetaRF::changeState(uint8_t nextState1)
-{
-    const uint8_t buffer[] = {
-        SI4455_CMD_ID_CHANGE_STATE,
-        nextState1
-    };
-
-    sendCommand(buffer, SI4455_CMD_ARG_COUNT_CHANGE_STATE);
-}
-
-
-
-// Extended support
-void ZetaRF::nopCommand()
-{
-    const uint8_t buffer[] = {
-        SI4455_CMD_ID_NOP
-    };
-
-    sendCommand(buffer, SI4455_CMD_ARG_COUNT_NOP);
-}
-
-void ZetaRF::writeTxFifo(uint8_t* data, uint8_t count)
-{
-    writeData(SI4455_CMD_ID_WRITE_TX_FIFO, data, count, false);
-}
-
-void ZetaRF::readRxFifo(uint8_t* data, uint8_t count)
-{
-    readData(SI4455_CMD_ID_READ_RX_FIFO, data, count, false);
-}
-
-Si4455_FifoInfo& ZetaRF::readFifoInfo(uint8_t fifo)
-{
-    const uint8_t buffer[] = {
-        SI4455_CMD_ID_FIFO_INFO,
-        fifo
-    };
-
-    sendCommandAndGetResponse(buffer, SI4455_CMD_ARG_COUNT_FIFO_INFO,
-                              m_commandReply.RAW, SI4455_CMD_REPLY_COUNT_FIFO_INFO);
-    return m_commandReply.FIFO_INFO;
-
-    // Si4455Cmd.FIFO_INFO.RX_FIFO_COUNT   = radioCmd[0];
-    // Si4455Cmd.FIFO_INFO.TX_FIFO_SPACE   = radioCmd[1];
-}
-
-
-Si4455_PartInfo& ZetaRF::readPartInfo()
-{
-    const uint8_t buffer[] = {
-        SI4455_CMD_ID_PART_INFO
-    };
-
-    sendCommandAndGetResponse(buffer, SI4455_CMD_ARG_COUNT_PART_INFO,
-                              m_commandReply.RAW, SI4455_CMD_REPLY_COUNT_PART_INFO);
-    return m_commandReply.PART_INFO;
-
-    // Si4455Cmd.PART_INFO.CHIPREV         = radioCmd[0];
-    // Si4455Cmd.PART_INFO.PART.U8[MSB]    = radioCmd[1];
-    // Si4455Cmd.PART_INFO.PART.U8[LSB]    = radioCmd[2];
-    // Si4455Cmd.PART_INFO.PBUILD          = radioCmd[3];
-    // Si4455Cmd.PART_INFO.ID.U8[MSB]      = radioCmd[4];
-    // Si4455Cmd.PART_INFO.ID.U8[LSB]      = radioCmd[5];
-    // Si4455Cmd.PART_INFO.CUSTOMER        = radioCmd[6];
-    // Si4455Cmd.PART_INFO.ROMID           = radioCmd[7];
-    // Si4455Cmd.PART_INFO.BOND            = radioCmd[8];
-}
-
+/*!
+ * Retrieves the value of one or more properties.
+ */
 Si4455_Properties& ZetaRF::readProperties(uint8_t group, uint8_t count, uint8_t startProperty)
 {
     const uint8_t buffer[] = {
@@ -493,7 +519,123 @@ Si4455_Properties& ZetaRF::readProperties(uint8_t group, uint8_t count, uint8_t 
     // Si4455Cmd.GET_PROPERTY.DATA15   = radioCmd[15];
 }
 
-Si4455_FuncInfo& ZetaRF::readFuncInfo()
+/*!
+ * Sets the value of one or more properties.
+ */
+void ZetaRF::setProperties(uint8_t group, uint8_t count, uint8_t property, ...)
+{
+    va_list argList;
+    uint8_t cmdIndex;
+
+    uint8_t buffer[16] = {    // No more than 12 properties allowed
+        SI4455_CMD_ID_SET_PROPERTY,
+        group,
+        count,
+        property
+    };
+
+    va_start(argList, property);
+    cmdIndex = 4;
+    while (count--) {
+        buffer[cmdIndex] = (uint8_t)(va_arg(argList, int));
+        cmdIndex++;
+        if (cmdIndex == 15) break;
+    }
+    va_end(argList);
+
+    sendCommand(buffer, cmdIndex);
+}
+
+/*!
+ * Request current device state and channel.
+ */
+Si4455_DeviceState& ZetaRF::requestDeviceState()
+{
+    const uint8_t buffer[] = {
+        SI4455_CMD_ID_REQUEST_DEVICE_STATE
+    };
+
+    sendCommandAndGetResponse(buffer, SI4455_CMD_ARG_COUNT_REQUEST_DEVICE_STATE,
+                              m_commandReply.RAW, SI4455_CMD_REPLY_COUNT_REQUEST_DEVICE_STATE);
+    return m_commandReply.REQUEST_DEVICE_STATE;
+
+    // Si4455Cmd.REQUEST_DEVICE_STATE.CURR_STATE       = radioCmd[0];
+    // Si4455Cmd.REQUEST_DEVICE_STATE.CURRENT_CHANNEL  = radioCmd[1];
+}
+
+/*!
+ * Manually switch the chip to a desired operating state.
+ */
+void ZetaRF::changeState(uint8_t nextState1)
+{
+    const uint8_t buffer[] = {
+        SI4455_CMD_ID_CHANGE_STATE,
+        nextState1
+    };
+
+    sendCommand(buffer, SI4455_CMD_ARG_COUNT_CHANGE_STATE);
+}
+
+
+/*!
+ * No Operation command.
+ */
+void ZetaRF::nopCommand()
+{
+    const uint8_t buffer[] = {
+        SI4455_CMD_ID_NOP
+    };
+
+    sendCommand(buffer, SI4455_CMD_ARG_COUNT_NOP);
+}
+
+
+/*!
+ * Access the current byte counts in the TX and RX FIFOs, and provide for resetting the FIFOs.
+ */
+Si4455_FifoInfo& ZetaRF::readFifoInfo(uint8_t fifo)
+{
+    const uint8_t buffer[] = {
+        SI4455_CMD_ID_FIFO_INFO,
+        fifo
+    };
+
+    sendCommandAndGetResponse(buffer, SI4455_CMD_ARG_COUNT_FIFO_INFO,
+                              m_commandReply.RAW, SI4455_CMD_REPLY_COUNT_FIFO_INFO);
+    return m_commandReply.FIFO_INFO;
+
+    // Si4455Cmd.FIFO_INFO.RX_FIFO_COUNT   = radioCmd[0];
+    // Si4455Cmd.FIFO_INFO.TX_FIFO_SPACE   = radioCmd[1];
+}
+
+/*!
+ * Reports basic information about the device.
+ */
+const Si4455_PartInfo& ZetaRF::readPartInfo()
+{
+    const uint8_t buffer[] = {
+        SI4455_CMD_ID_PART_INFO
+    };
+
+    sendCommandAndGetResponse(buffer, SI4455_CMD_ARG_COUNT_PART_INFO,
+                              m_commandReply.RAW, SI4455_CMD_REPLY_COUNT_PART_INFO);
+    return m_commandReply.PART_INFO;
+
+    // Si4455Cmd.PART_INFO.CHIPREV         = radioCmd[0];
+    // Si4455Cmd.PART_INFO.PART.U8[MSB]    = radioCmd[1];
+    // Si4455Cmd.PART_INFO.PART.U8[LSB]    = radioCmd[2];
+    // Si4455Cmd.PART_INFO.PBUILD          = radioCmd[3];
+    // Si4455Cmd.PART_INFO.ID.U8[MSB]      = radioCmd[4];
+    // Si4455Cmd.PART_INFO.ID.U8[LSB]      = radioCmd[5];
+    // Si4455Cmd.PART_INFO.CUSTOMER        = radioCmd[6];
+    // Si4455Cmd.PART_INFO.ROMID           = radioCmd[7];
+    // Si4455Cmd.PART_INFO.BOND            = radioCmd[8];
+}
+
+/*!
+ * Returns the Function revision information of the device.
+ */
+const Si4455_FuncInfo& ZetaRF::readFuncInfo()
 {
     const uint8_t buffer[] = {
         SI4455_CMD_ID_FUNC_INFO
@@ -517,7 +659,9 @@ Si4455_FuncInfo& ZetaRF::readFuncInfo()
 }
 
 
-
+/*!
+ * Reads the fast response registers (FRR) starting with FRR_A.
+ */
 Si4455_FrrA& ZetaRF::readFrrA(uint8_t count)
 {
     readData(SI4455_CMD_ID_FRR_A_READ,
@@ -532,7 +676,9 @@ Si4455_FrrA& ZetaRF::readFrrA(uint8_t count)
     // Si4455Cmd.FRR_A_READ.FRR_D_VALUE = radioCmd[3];
 }
 
-
+/*!
+ * Reads the fast response registers (FRR) starting with FRR_B.
+ */
 Si4455_FrrB& ZetaRF::readFrrB(uint8_t count)
 {
     readData(SI4455_CMD_ID_FRR_B_READ,
@@ -547,7 +693,9 @@ Si4455_FrrB& ZetaRF::readFrrB(uint8_t count)
     // Si4455Cmd.FRR_B_READ.FRR_A_VALUE = radioCmd[3];
 }
 
-
+/*!
+ * Reads the fast response registers (FRR) starting with FRR_C.
+ */
 Si4455_FrrC& ZetaRF::readFrrC(uint8_t count)
 {
     readData(SI4455_CMD_ID_FRR_C_READ,
@@ -562,7 +710,9 @@ Si4455_FrrC& ZetaRF::readFrrC(uint8_t count)
     // Si4455Cmd.FRR_C_READ.FRR_B_VALUE = radioCmd[3];
 }
 
-
+/*!
+ * Reads the fast response registers (FRR) starting with FRR_D.
+ */
 Si4455_FrrD& ZetaRF::readFrrD(uint8_t count)
 {
     readData(SI4455_CMD_ID_FRR_D_READ,
@@ -578,20 +728,9 @@ Si4455_FrrD& ZetaRF::readFrrD(uint8_t count)
 }
 
 
-Si4455_DeviceState& ZetaRF::requestDeviceState()
-{
-    const uint8_t buffer[] = {
-        SI4455_CMD_ID_REQUEST_DEVICE_STATE
-    };
-
-    sendCommandAndGetResponse(buffer, SI4455_CMD_ARG_COUNT_REQUEST_DEVICE_STATE,
-                              m_commandReply.RAW, SI4455_CMD_REPLY_COUNT_REQUEST_DEVICE_STATE);
-    return m_commandReply.REQUEST_DEVICE_STATE;
-
-    // Si4455Cmd.REQUEST_DEVICE_STATE.CURR_STATE       = radioCmd[0];
-    // Si4455Cmd.REQUEST_DEVICE_STATE.CURRENT_CHANNEL  = radioCmd[1];
-}
-
+/*!
+ * Used to read CTS and the command response.
+ */
 Si4455_CommandBuffer& ZetaRF::readCommandBuffer()
 {
     const uint8_t buffer[] = {
@@ -620,6 +759,9 @@ Si4455_CommandBuffer& ZetaRF::readCommandBuffer()
     // Si4455Cmd.READ_CMD_BUFF.CMD_BUFF15  = radioCmd[15];
 }
 
+/*!
+ * Performs conversions using the Auxiliary ADC and returns the results of those conversions.
+ */
 Si4455_AdcReadings& ZetaRF::readADC(uint8_t adcEnable, uint8_t adcConfig)
 {
     const uint8_t buffer[] = {
@@ -642,6 +784,10 @@ Si4455_AdcReadings& ZetaRF::readADC(uint8_t adcEnable, uint8_t adcConfig)
     // Si4455Cmd.GET_ADC_READING.TEMP_INTERCEPT        = radioCmd[7];
 }
 
+/*!
+ * Returns the interrupt status of the Packet Handler Interrupt Group (both STATUS and PENDING).
+ * Optionally, it may be used to clear latched (PENDING) interrupt events.
+ */
 Si4455_PhStatus& ZetaRF::readPhStatus(uint8_t clearPendingPH)
 {
     const uint8_t buffer[] = {
@@ -657,27 +803,10 @@ Si4455_PhStatus& ZetaRF::readPhStatus(uint8_t clearPendingPH)
     // Si4455Cmd.GET_PH_STATUS.PH_STATUS      = radioCmd[1];
 }
 
-Si4455_ModemStatus& ZetaRF::readModemStatus(uint8_t clearPendingModem)
-{
-    const uint8_t buffer[] = {
-        SI4455_CMD_ID_GET_MODEM_STATUS,
-        clearPendingModem
-    };
-
-    sendCommandAndGetResponse(buffer, SI4455_CMD_ARG_COUNT_GET_MODEM_STATUS,
-                              m_commandReply.RAW, SI4455_CMD_REPLY_COUNT_GET_MODEM_STATUS);
-    return m_commandReply.GET_MODEM_STATUS;
-
-    // Si4455Cmd.GET_MODEM_STATUS.MODEM_PEND   = radioCmd[0];
-    // Si4455Cmd.GET_MODEM_STATUS.MODEM_STATUS = radioCmd[1];
-    // Si4455Cmd.GET_MODEM_STATUS.CURR_RSSI    = radioCmd[2];
-    // Si4455Cmd.GET_MODEM_STATUS.LATCH_RSSI   = radioCmd[3];
-    // Si4455Cmd.GET_MODEM_STATUS.ANT1_RSSI    = radioCmd[4];
-    // Si4455Cmd.GET_MODEM_STATUS.ANT2_RSSI    = radioCmd[5];
-    // Si4455Cmd.GET_MODEM_STATUS.AFC_FREQ_OFFSET.U8[MSB]  = radioCmd[6];
-    // Si4455Cmd.GET_MODEM_STATUS.AFC_FREQ_OFFSET.U8[LSB]  = radioCmd[7];
-}
-
+/*!
+ * Returns the interrupt status of the Chip Interrupt Group (both STATUS and PENDING).
+ * Optionally, it may be used to clear latched (PENDING) interrupt events.
+ */
 Si4455_ChipStatus& ZetaRF::readChipStatus(uint8_t clearPendingChip)
 {
     const uint8_t buffer[] = {
@@ -696,15 +825,13 @@ Si4455_ChipStatus& ZetaRF::readChipStatus(uint8_t clearPendingChip)
 
 
 
-
-
 /*!
- * Gets a command response from the radio chip
+ * Gets a command response from the radio chip.
  *
- * @param data         Pointer to where to put the data
- * @param count     Number of bytes to get from the radio chip
+ * @param data  Pointer to where to put the data.
+ * @param count Number of bytes to get from the radio chip.
  *
- * @return CTS value
+ * @return CTS value.
  */
 uint8_t ZetaRF::getResponse(uint8_t* data, uint8_t count)
 {
@@ -729,12 +856,9 @@ uint8_t ZetaRF::getResponse(uint8_t* data, uint8_t count)
     }
 
     if (errorCount == 0) {
-        while (1) {
-            // ERROR!!!!  CTS should never take this long.
-#ifdef RADIO_COMM_ERROR_CALLBACK
-            RADIO_COMM_ERROR_CALLBACK();
-#endif
-        }
+        // ERROR! Should never take this long
+        // @todo Error callback ?
+        return 0;
     }
 
     if (ctsVal == 0xFF) {
@@ -745,10 +869,10 @@ uint8_t ZetaRF::getResponse(uint8_t* data, uint8_t count)
 }
 
 /*!
- * Sends a command to the radio chip
+ * Sends a command to the radio chip.
  *
- * @param data         Pointer to the command to send.
- * @param count     Number of bytes in the command to send to the radio device
+ * @param data  Pointer to the command to send.
+ * @param count Number of bytes in the command to send to the radio device.
  */
 void ZetaRF::sendCommand(const uint8_t* data, uint8_t count)
 {
@@ -764,12 +888,29 @@ void ZetaRF::sendCommand(const uint8_t* data, uint8_t count)
 }
 
 /*!
- * Gets a command response from the radio chip
+ * Sends a command to the radio chip and gets a response.
  *
- * @param command           Command ID
- * @param pollCtsFlag       Set to poll CTS
- * @param data         Pointer to where to put the data.
- * @param count     Number of bytes to get from the radio chip.
+ * @param commandData       Pointer to the command data.
+ * @param commandByteCount  Number of bytes in the command to send to the radio device.
+ * @param responseData      Pointer to where to put the response data.
+ * @param responseByteCount Number of bytes in the response to fetch.
+ *
+ * @return CTS value.
+ */
+uint8_t ZetaRF::sendCommandAndGetResponse(const uint8_t* commandData, uint8_t commandByteCount, uint8_t* responseData, uint8_t responseByteCount)
+{
+    sendCommand(commandData, commandByteCount);
+    return getResponse(responseData, responseByteCount);
+}
+
+
+/*!
+ * Gets a command response from the radio chip.
+ *
+ * @param command     Command ID.
+ * @param data        Pointer to where to put the data.
+ * @param count       Number of bytes to get from the radio chip.
+ * @param pollCtsFlag Set to poll CTS.
  */
 void ZetaRF::readData(uint8_t command, uint8_t* data, uint8_t count, bool pollCtsFlag)
 {
@@ -788,12 +929,12 @@ void ZetaRF::readData(uint8_t command, uint8_t* data, uint8_t count, bool pollCt
 }
 
 /*!
- * Gets a command response from the radio chip
+ * Gets a command response from the radio chip.
  *
- * @param command           Command ID
- * @param pollCtsFlag       Set to poll CTS
- * @param data         Pointer to where to put the data
- * @param count     Number of bytes to get from the radio chip
+ * @param command     Command ID.
+ * @param data        Pointer to where to put the data.
+ * @param count       Number of bytes to get from the radio chip.
+ * @param pollCtsFlag Set to poll CTS.
  */
 void ZetaRF::writeData(uint8_t command, const uint8_t* data, uint8_t count, bool pollCtsFlag)
 {
@@ -811,11 +952,12 @@ void ZetaRF::writeData(uint8_t command, const uint8_t* data, uint8_t count, bool
     clearCts();
 }
 
+
 /*!
-* Waits for CTS to be high
-*
-* @return CTS value
-*/
+ * Waits for CTS to be high.
+ *
+ * @return CTS value.
+ */
 uint8_t ZetaRF::pollCts()
 {
 #ifdef RADIO_USER_CFG_USE_GPIO1_FOR_CTS
@@ -831,86 +973,68 @@ uint8_t ZetaRF::pollCts()
 }
 
 /*!
-* Clears the CTS state variable.
-*/
+ * Clears the CTS state variable.
+ */
 void ZetaRF::clearCts()
 {
     m_ctsWentHigh = false;
 }
 
-/*!
-* Sends a command to the radio chip and gets a response
-*
-* @param commandByteCount  Number of bytes in the command to send to the radio device
-* @param commandData      Pointer to the command data
-* @param responseByteCount Number of bytes in the response to fetch
-* @param responseData     Pointer to where to put the response data
-*
-* @return CTS value
-*/
-uint8_t ZetaRF::sendCommandAndGetResponse(const uint8_t* commandData, uint8_t commandByteCount, uint8_t* responseData, uint8_t responseByteCount)
-{
-    sendCommand(commandData, commandByteCount);
-    return getResponse(responseData, responseByteCount);
-}
 
 
-
-
-
-void ZetaRF::assertShutdown()
+void ZetaRF::assertShutdown() const
 {
     digitalWrite(m_sdnPin, HIGH);
 }
-void ZetaRF::deassertShutdown()
+void ZetaRF::deassertShutdown() const
 {
     digitalWrite(m_sdnPin, LOW);
 }
 
-void ZetaRF::clearCS()
+void ZetaRF::clearCS() const
 {
     SPI.beginTransaction(ZETARF_SPI_SETTINGS);
     digitalWrite(m_csPin, LOW);
 }
-void ZetaRF::setCS()
+void ZetaRF::setCS() const
 {
     digitalWrite(m_csPin, HIGH);
     SPI.endTransaction();
 }
 
-bool ZetaRF::irqLevel()
+bool ZetaRF::irqLevel() const
 {
     return digitalRead(m_irqPin);
 }
 
-uint8_t ZetaRF::spiReadWriteByte(uint8_t value)
+
+uint8_t ZetaRF::spiReadWriteByte(uint8_t value) const
 {
     return SPI.transfer(value);
 }
 
-void ZetaRF::spiWriteByte(uint8_t value)
+void ZetaRF::spiWriteByte(uint8_t value) const
 {
     spiReadWriteByte(value);
 }
-uint8_t ZetaRF::spiReadByte()
+uint8_t ZetaRF::spiReadByte() const
 {
     return spiReadWriteByte(0xFF);
 }
 
 
-
-void ZetaRF::spiReadWriteData(uint8_t* data, uint8_t count)
+void ZetaRF::spiReadWriteData(uint8_t* data, uint8_t count) const
 {
     SPI.transfer(data, count);
 }
 
-void ZetaRF::spiWriteData(const uint8_t* data, uint8_t count)
+void ZetaRF::spiWriteData(const uint8_t* data, uint8_t count) const
 {
     while (count--) {
         SPI.transfer(*data++);
     }
 }
-void ZetaRF::spiReadData(uint8_t* data, uint8_t count)
+void ZetaRF::spiReadData(uint8_t* data, uint8_t count) const
 {
     while (count--) {
         *data++ = SPI.transfer(0xFF);
