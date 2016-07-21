@@ -92,7 +92,7 @@ void ZetaRF::sendPacket(uint8_t channel, const uint8_t *data)
     if (!data) return;
     // Read ITs, clear pending ones
     readInterruptStatus(0, 0, 0);
-Serial.print("Sending: "); Serial.println(m_packetLength);
+
     // Fill the TX fifo with data
     writeTxFifo(data, m_packetLength);
 
@@ -141,7 +141,6 @@ bool ZetaRF::checkTransmitted()
             return true;
         }
     //}
-
     return false;
 }
 
@@ -158,7 +157,6 @@ bool ZetaRF::checkReceived()
             return true;
         }
     //}
-
     return false;
 }
 
@@ -188,27 +186,27 @@ uint8_t ZetaRF::readPacket(uint8_t *data)
 
 bool ZetaRF::isTxFifoAlmostEmpty()
 {
-    if (irqLevel() == false) {
+    //if (irqLevel() == false) {
         readInterruptStatus(0, 0, 0);
 
         if (m_txFifoAlmostEmptyFlag) {
             m_txFifoAlmostEmptyFlag = false;
             return true;
         }
-    }
+    //}
     return false;
 }
 
 bool ZetaRF::isRxFifoAlmostFull()
 {
-    if (irqLevel() == false) {
+    //if (irqLevel() == false) {
         readInterruptStatus(0, 0, 0);
         
         if (m_rxFifoAlmostFullFlag) {
             m_rxFifoAlmostFullFlag = false;
             return true;
         }
-    }
+    //}
     return false;
 }
 
@@ -1016,7 +1014,7 @@ void ZetaRF::setCS() const
 
 bool ZetaRF::irqLevel() const
 {
-    return digitalRead(m_irqPin);
+    return (digitalRead(m_irqPin) == HIGH);
 }
 
 
