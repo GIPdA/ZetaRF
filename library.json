@@ -1,0 +1,21 @@
+{
+  "name": "ZetaRF",
+  "keywords": "rf, radio, wireless, spi",
+  "description": "Driver for Si4455 Low Current Sub-GHz Wireless Transceiver",
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/GIPdA/ZetaRF.git"
+  },
+  "include": [
+    "*.h",
+    "*.cpp",
+    "examples/*/*.ino"
+  ],
+  "frameworks": "arduino",
+  "platforms": [
+    "atmelavr",
+    "atmelsam",
+    "teensy"
+  ]
+}
