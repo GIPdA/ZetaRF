@@ -1,0 +1,25 @@
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+Initialize	KEYWORD2
+StartTX	KEYWORD2
+StartRX	KEYWORD2
+CheckEZConfig	KEYWORD2
+
+#######################################
+# Instances (KEYWORD2)
+#######################################
+
+Radio	KEYWORD2
+Si4455_API	KEYWORD2
+Si4455_nIRQ	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
