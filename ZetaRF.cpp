@@ -9,11 +9,13 @@
 #include <SPI.h>
 
 #include "ZetaRF.h"
-#include "ZetaRF_config.h"
+#include "radio_config.h"
 
 
 #define SI4455_FIFO_SIZE 64
 #define RADIO_CTS_TIMEOUT 10000
+
+#define ZETARF_SPI_SETTINGS SPISettings(1000000UL, MSBFIRST, SPI_MODE0)
 
 
 static const uint8_t DefaultRadioConfigurationDataArray[] = RADIO_CONFIGURATION_DATA_ARRAY;
@@ -24,16 +26,24 @@ ZetaRF::ZetaRF(int csPin, int shutdownPin, int irqPin) :
     m_sdnPin(shutdownPin),
     m_irqPin(irqPin),
     m_ctsWentHigh(0),
-    m_channelNumber(ZETARF_CHANNEL_NUMBER),
-    m_packetLength(ZETARF_PACKET_LENGTH),
+    m_channelNumber(RADIO_CONFIGURATION_DATA_CHANNEL_NUMBER),
+    m_packetLength(RADIO_CONFIGURATION_DATA_RADIO_PACKET_LENGTH),
+    m_dataTransmittedFlag(false),
+    m_dataAvailableFlag(false),
+    m_crcErrorFlag(false),
+    m_txFifoAlmostEmptyFlag(false),
+    m_rxFifoAlmostFullFlag(false),
     m_radioConfigurationDataArray(DefaultRadioConfigurationDataArray)
 {
 }
 
 
-bool ZetaRF::begin(uint8_t channel)
+bool ZetaRF::begin(uint8_t channel, uint8_t packetLength)
 {
     m_channelNumber = channel;
+
+    if (packetLength > 0)
+        m_packetLength = packetLength;
 
     SPI.begin();
 
@@ -82,7 +92,7 @@ void ZetaRF::sendPacket(uint8_t channel, const uint8_t *data)
     if (!data) return;
     // Read ITs, clear pending ones
     readInterruptStatus(0, 0, 0);
-
+Serial.print("Sending: "); Serial.println(m_packetLength);
     // Fill the TX fifo with data
     writeTxFifo(data, m_packetLength);
 

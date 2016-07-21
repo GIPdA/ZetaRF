@@ -6,9 +6,7 @@
 #ifndef ZETARF_H_
 #define ZETARF_H_
 
-#include "radio_config.h"
 #include "si4455_defs.h"
-
 
 typedef si4455_reply_FIFO_INFO_map      Si4455_FifoInfo;
 typedef si4455_reply_GPIO_PIN_CFG_map   Si4455_GpioPinConfig;
@@ -36,7 +34,7 @@ class ZetaRF
 public:
     ZetaRF(int csPin, int shutdownPin, int irqPin);
 
-    bool begin(uint8_t channel = 0);
+    bool begin(uint8_t channel = 0, uint8_t packetLength = 0 /* 0 = default packet length defined by ZETARF_PACKET_LENGTH*/);
 
     void sendPacket(const uint8_t *data);
     void sendPacket(uint8_t channel, const uint8_t *data);
@@ -65,7 +63,7 @@ private:
         PatchFail,
         CommandError
     };
-    
+
     typedef si4455_cmd_reply_union CommandReply;
 
     void powerUp();
@@ -148,7 +146,7 @@ private:
     si4455_cmd_reply_union m_commandReply;
 
     uint8_t m_channelNumber;
-    const uint8_t m_packetLength;
+    uint8_t m_packetLength;
 
     bool m_dataTransmittedFlag;
     bool m_dataAvailableFlag;
