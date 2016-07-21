@@ -12,6 +12,7 @@ This library is based on code examples from Silicon Labs [Wireless Development S
 
 **Beta release, everything has not been tested yet!**
 
+	This library may not be directly compatible with any board implementing Si4455 chip! Currently it was only tested with ZETA-868-SO module from RF Solutions.
 
 ## Data Packets
 The Si4455 chip transmit and receive fixed size packets, and you have to set the packet size when initializing the library (see begin()).
