@@ -1,6 +1,8 @@
 /*
  * Zeta RF Getting Started Code Example.
  * Basic example on how to send messages back and forth between two modules.
+ *
+ * Usage: write this sample on both boards and send text over serial!
  */
 
 #include <ZetaRF.h>

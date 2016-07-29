@@ -145,7 +145,7 @@ bool ZetaRF::checkTransmitted()
 }
 
 /*!
- * Checks if an incomping message was received.
+ * Checks if an incoming message was received.
  */
 bool ZetaRF::checkReceived()
 {

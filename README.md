@@ -12,7 +12,9 @@ This library is based on code examples from Silicon Labs [Wireless Development S
 
 **Beta release, everything has not been tested yet!**
 
-	This library may not be directly compatible with any board implementing Si4455 chip! Currently it was only tested with ZETA-868-SO module from RF Solutions.
+> This library may not be directly compatible with any board implementing Si4455 chip! Currently it was only tested with ZETA-868-SO module from RF Solutions.
+
+ZETA module datasheet: <https://www.rfsolutions.co.uk/downloads/1456219226DS-ZETA.pdf>
 
 ## Data Packets
 The Si4455 chip transmit and receive fixed size packets, and you have to set the packet size when initializing the library (see begin()).
@@ -68,6 +70,23 @@ See code examples for more details.
 
 ## Installation
 Copy the library folder to your Arduino library folder.
+
+## Pin connexions
+
+ZETA Pin #|ZETA Module|Arduino|Description
+-----|---|---|
+1|ANT|-|Antenna (small wire for tests)
+2|GND|GND|Power
+3|SDN|GPIO|Shutdown
+4|VCC|VCC|Power
+5|nIRQ|GPIO|IRQ
+6|NC|-|Not Connected
+7|GPIO1|-
+8|GPIO2|-
+9|SCLK|SCLK|SPI Clock
+10|SDI|MOSI|SPI Master Out
+11|SDO|MISO|SPI Master In
+12|nSEL|CS|Chip Select
 
 ## License
 See LICENSE file.
