@@ -158,14 +158,13 @@ void ZetaRF::startReceiver(uint8_t channel, uint8_t length)
  */
 bool ZetaRF::checkTransmitted()
 {
-    //if (irqLevel() == false) {
-        readInterruptStatus(0, 0, 0);
+    readInterruptStatus(0, 0, 0);
 
-        if (m_dataTransmittedFlag) {
-            m_dataTransmittedFlag = false;
-            return true;
-        }
-    //}
+    if (m_dataTransmittedFlag) {
+        m_dataTransmittedFlag = false;
+        return true;
+    }
+
     return false;
 }
 
@@ -175,29 +174,6 @@ bool ZetaRF::checkTransmitted()
 bool ZetaRF::checkReceived()
 {
     const Si4455_InterruptStatus &is = readInterruptStatus(0, 0, 0);
-
-    /*if (is.MODEM_PEND & 0x02) {
-        // Preamble detected
-        //Serial.println("PRE");
-
-        // Wait RX complete
-        while (!(is.PH_PEND & SI4455_CMD_GET_INT_STATUS_REP_PACKET_RX_PEND_BIT)) {
-            readInterruptStatus(0, 0, 0);
-        }
-
-        m_dataAvailableFlag = false;
-
-        // Read FIFO
-        uint8_t data[2];
-        readRxFifo(data, 2);
-
-        // Update packet info
-        readPacketInfo(1, data[0], data[0]-2);
-
-        Serial.print("REC ");
-        Serial.println(data[0]);
-    }//*/
-
 
     if (m_dataAvailableFlag) {
         m_dataAvailableFlag = false;
@@ -241,7 +217,8 @@ uint8_t ZetaRF::readPacket(uint8_t *data)
     const bool dataRemaining = (fi.RX_FIFO_COUNT > m_packetLength);
 
     // Read FIFO
-    readRxFifo(data, m_packetLength);
+    readRxFifo(data, (fi.RX_FIFO_COUNT > m_packetLength) ? m_packetLength : fi.RX_FIFO_COUNT);
+    //readRxFifo(data, m_packetLength);
 
     if (dataRemaining) {
         m_dataAvailableFlag = true;
@@ -253,27 +230,25 @@ uint8_t ZetaRF::readPacket(uint8_t *data)
 
 bool ZetaRF::isTxFifoAlmostEmpty()
 {
-    //if (irqLevel() == false) {
-        readInterruptStatus(0, 0, 0);
+    readInterruptStatus(0, 0, 0);
 
-        if (m_txFifoAlmostEmptyFlag) {
-            m_txFifoAlmostEmptyFlag = false;
-            return true;
-        }
-    //}
+    if (m_txFifoAlmostEmptyFlag) {
+        m_txFifoAlmostEmptyFlag = false;
+        return true;
+    }
+
     return false;
 }
 
 bool ZetaRF::isRxFifoAlmostFull()
 {
-    //if (irqLevel() == false) {
-        readInterruptStatus(0, 0, 0);
-        
-        if (m_rxFifoAlmostFullFlag) {
-            m_rxFifoAlmostFullFlag = false;
-            return true;
-        }
-    //}
+    readInterruptStatus(0, 0, 0);
+    
+    if (m_rxFifoAlmostFullFlag) {
+        m_rxFifoAlmostFullFlag = false;
+        return true;
+    }
+
     return false;
 }
 
@@ -510,6 +485,8 @@ Si4455_InterruptStatus& ZetaRF::readInterruptStatus(uint8_t clearPendingPH, uint
 
     if (m_commandReply.GET_INT_STATUS.PH_PEND & SI4455_CMD_GET_INT_STATUS_REP_CRC_ERROR_PEND_BIT) {
         m_crcErrorFlag = true;
+        // Reset Fifo
+        resetFifo();
     }
 
     if (m_commandReply.GET_INT_STATUS.PH_PEND & SI4455_CMD_GET_INT_STATUS_REP_TX_FIFO_ALMOST_EMPTY_PEND_BIT) {
@@ -684,6 +661,16 @@ Si4455_FifoInfo& ZetaRF::readFifoInfo(uint8_t fifo)
 
     // Si4455Cmd.FIFO_INFO.RX_FIFO_COUNT   = radioCmd[0];
     // Si4455Cmd.FIFO_INFO.TX_FIFO_SPACE   = radioCmd[1];
+}
+
+void ZetaRF::resetFifo()
+{
+    const uint8_t buffer[] = {
+        SI4455_CMD_ID_FIFO_INFO,
+        0x03
+    };
+
+    sendCommand(buffer, SI4455_CMD_ARG_COUNT_FIFO_INFO);
 }
 
 /*!

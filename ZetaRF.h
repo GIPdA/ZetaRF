@@ -97,6 +97,7 @@ private:
 
     
     Si4455_FifoInfo& readFifoInfo(uint8_t fifo = 0);
+    void resetFifo();
     Si4455_PacketInfo& readPacketInfo(uint8_t fieldNum, uint16_t len, uint16_t lenDiff);
     // @todo Add PacketInfo read
     
