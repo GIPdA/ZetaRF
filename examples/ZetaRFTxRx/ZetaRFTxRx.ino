@@ -49,7 +49,7 @@ void setup()
   Serial.println("----------");//*/
   
   // Set module in receive mode
-  zeta.startReceiver();
+  zeta.startListening();
 
   Serial.println("Init done.");
 }
@@ -74,14 +74,13 @@ void loop()
     // Send buffer
     transmitting = true;  // Only one at a time!
     zeta.sendPacket((const uint8_t*)data);  // Use channel set with begin()
+    // Module will automatically return to listening mode
   }
 
   // Check if message was transmitted successfully
   if (zeta.checkTransmitted()) {
     transmitting = false;
     Serial.println("msg transmitted");
-    // Back into receive mode
-    zeta.startReceiver();
   }//*/
 
   // Check incoming messages and print
