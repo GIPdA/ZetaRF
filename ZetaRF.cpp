@@ -97,7 +97,20 @@ void ZetaRF::sendPacket(uint8_t channel, const uint8_t *data)
     writeTxFifo(data, m_packetLength);
 
     // Start sending packet on channel, START immediately, Packet according to PH
-    startTx(channel, 0x30, m_packetLength);
+    startTx(channel, 0x80, m_packetLength);
+}
+
+void ZetaRF::sendPacket(uint8_t channel, const uint8_t *data, uint8_t length)
+{
+    if (!data || length == 0) return;
+    // Read ITs, clear pending ones
+    readInterruptStatus(0, 0, 0);
+
+    // Fill the TX fifo with data
+    writeTxFifo(data, length);
+
+    // Start sending packet on channel, return to RX after transmit
+    startTx(channel, 0x80, length);
 }
 
 
@@ -127,6 +140,18 @@ void ZetaRF::startReceiver(uint8_t channel)
             SI4455_CMD_START_RX_ARG_RXINVALID_STATE_ENUM_RX);
 }
 
+void ZetaRF::startReceiver(uint8_t channel, uint8_t length)
+{
+    // Read ITs, clear pending ones
+    readInterruptStatus(0, 0, 0);
+
+    // Start Receiving packet on channel, START immediately, Packet n bytes long
+    startRx(channel, 0, length,
+            SI4455_CMD_START_RX_ARG_RXTIMEOUT_STATE_ENUM_RX,
+            SI4455_CMD_START_RX_ARG_RXVALID_STATE_ENUM_RX,
+            SI4455_CMD_START_RX_ARG_RXINVALID_STATE_ENUM_RX);
+}
+
 
 /*!
  * Checks if the last transmission succeed.
@@ -149,16 +174,56 @@ bool ZetaRF::checkTransmitted()
  */
 bool ZetaRF::checkReceived()
 {
-    //if (irqLevel() == false) {
-        readInterruptStatus(0, 0, 0);
+    const Si4455_InterruptStatus &is = readInterruptStatus(0, 0, 0);
 
-        if (m_dataAvailableFlag) {
-            m_dataAvailableFlag = false;
-            return true;
+    /*if (is.MODEM_PEND & 0x02) {
+        // Preamble detected
+        //Serial.println("PRE");
+
+        // Wait RX complete
+        while (!(is.PH_PEND & SI4455_CMD_GET_INT_STATUS_REP_PACKET_RX_PEND_BIT)) {
+            readInterruptStatus(0, 0, 0);
         }
-    //}
+
+        m_dataAvailableFlag = false;
+
+        // Read FIFO
+        uint8_t data[2];
+        readRxFifo(data, 2);
+
+        // Update packet info
+        readPacketInfo(1, data[0], data[0]-2);
+
+        Serial.print("REC ");
+        Serial.println(data[0]);
+    }//*/
+
+
+    if (m_dataAvailableFlag) {
+        m_dataAvailableFlag = false;
+        return true;
+    }
+
     return false;
 }
+
+
+Si4455_PacketInfo& ZetaRF::readPacketInfo(uint8_t fieldNum, uint16_t length, uint16_t lenDiff)
+{
+    const uint8_t buffer[] = {
+        0x16,
+        (fieldNum & 0x1F),
+        (uint8_t)(length >> 8),
+        (uint8_t)(length),
+        (uint8_t)(lenDiff >> 8),
+        (uint8_t)(lenDiff)
+    };
+
+    sendCommandAndGetResponse(buffer, 6,
+                              m_commandReply.RAW, 2);
+    return m_commandReply.PACKET_INFO;
+}
+
 
 /*!
  * Read packet from Rx FIFO.
@@ -170,6 +235,8 @@ uint8_t ZetaRF::readPacket(uint8_t *data)
 
     // Read FIFO info to known how many bytes are pending
     Si4455_FifoInfo &fi = readFifoInfo(0);
+    //Serial.print("Read: ");
+    //Serial.println(fi.RX_FIFO_COUNT);
 
     const bool dataRemaining = (fi.RX_FIFO_COUNT > m_packetLength);
 
@@ -350,7 +417,8 @@ void ZetaRF::startTx(uint8_t channel, uint8_t condition, uint16_t length)
         channel,
         condition,
         (uint8_t)(length >> 8),
-        (uint8_t)(length)
+        (uint8_t)(length),
+        0
     };
 
     sendCommand(buffer, SI4455_CMD_ARG_COUNT_START_TX);

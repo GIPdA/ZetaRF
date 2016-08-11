@@ -28,6 +28,7 @@ typedef si4455_reply_GET_PH_STATUS_map      Si4455_PhStatus;
 typedef si4455_reply_GET_MODEM_STATUS_map   Si4455_ModemStatus;
 typedef si4455_reply_GET_CHIP_STATUS_map    Si4455_ChipStatus;
 
+typedef si4455_reply_PACKET_INFO_map Si4455_PacketInfo;
 
 class ZetaRF
 {
@@ -38,9 +39,11 @@ public:
 
     void sendPacket(const uint8_t *data);
     void sendPacket(uint8_t channel, const uint8_t *data);
+    void sendPacket(uint8_t channel, const uint8_t *data, uint8_t length);
 
     void startReceiver();
     void startReceiver(uint8_t channel);
+    void startReceiver(uint8_t channel, uint8_t length);
 
     bool checkTransmitted();
     bool checkReceived();
@@ -94,6 +97,7 @@ private:
 
     
     Si4455_FifoInfo& readFifoInfo(uint8_t fifo = 0);
+    Si4455_PacketInfo& readPacketInfo(uint8_t fieldNum, uint16_t len, uint16_t lenDiff);
     // @todo Add PacketInfo read
     
     Si4455_FrrA& readFrrA(uint8_t count);
