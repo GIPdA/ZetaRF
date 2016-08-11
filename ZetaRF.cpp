@@ -69,6 +69,17 @@ bool ZetaRF::begin(uint8_t channel, uint8_t packetLength)
     return true;
 }
 
+/*!
+ * Set the new channel to use for send and receive.
+ * You need to call startReceiver() for the new channel to take effect on receive mode.
+ *
+ * @param channel New channel number.
+ */
+void ZetaRF::setChannel(uint8_t channel)
+{
+    m_channelNumber = channel;
+}
+
 
 /*!
  * Set Radio to TX mode, fixed packet length.
@@ -78,7 +89,12 @@ bool ZetaRF::begin(uint8_t channel, uint8_t packetLength)
  */
 void ZetaRF::sendPacket(const uint8_t *data)
 {
-    sendPacket(m_channelNumber, data);
+    sendPacket(m_channelNumber, data, m_packetLength);
+}
+
+void ZetaRF::sendPacket(const uint8_t *data, uint8_t length)
+{
+    sendPacket(m_channelNumber, data, length);
 }
 
 /*!
@@ -89,15 +105,7 @@ void ZetaRF::sendPacket(const uint8_t *data)
  */
 void ZetaRF::sendPacket(uint8_t channel, const uint8_t *data)
 {
-    if (!data) return;
-    // Read ITs, clear pending ones
-    readInterruptStatus(0, 0, 0);
-
-    // Fill the TX fifo with data
-    writeTxFifo(data, m_packetLength);
-
-    // Start sending packet on channel, START immediately, Packet according to PH
-    startTx(channel, 0x80, m_packetLength);
+    sendPacket(channel, data, m_packetLength);
 }
 
 void ZetaRF::sendPacket(uint8_t channel, const uint8_t *data, uint8_t length)
@@ -105,6 +113,16 @@ void ZetaRF::sendPacket(uint8_t channel, const uint8_t *data, uint8_t length)
     if (!data || length == 0) return;
     // Read ITs, clear pending ones
     readInterruptStatus(0, 0, 0);
+    
+    // Wait when not ready
+    const Si4455_DeviceState &ds = requestDeviceState();
+    uint16_t counter = 0xF000;
+    do {
+        --counter;
+        requestDeviceState();   // ds is updated
+    } while ((ds.CURR_STATE == SI4455_CMD_REQUEST_DEVICE_STATE_REP_MAIN_STATE_ENUM_TX ||
+             ds.CURR_STATE == SI4455_CMD_REQUEST_DEVICE_STATE_REP_MAIN_STATE_ENUM_TX_TUNE) && 
+             counter != 0);
 
     // Fill the TX fifo with data
     writeTxFifo(data, length);

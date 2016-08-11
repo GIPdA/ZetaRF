@@ -37,7 +37,10 @@ public:
 
     bool begin(uint8_t channel = 0, uint8_t packetLength = 0 /* 0 = default packet length defined by ZETARF_PACKET_LENGTH*/);
 
+    void setChannel(uint8_t channel);
+
     void sendPacket(const uint8_t *data);
+    void sendPacket(const uint8_t *data, uint8_t length);
     void sendPacket(uint8_t channel, const uint8_t *data);
     void sendPacket(uint8_t channel, const uint8_t *data, uint8_t length);
 
