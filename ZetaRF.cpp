@@ -261,6 +261,13 @@ bool ZetaRF::isRxFifoAlmostFull()
 
 
 
+uint8_t ZetaRF::readCurrentRSSI()
+{
+    // Clear RSSI PEND only
+    return readModemStatus(0x27).CURR_RSSI;
+}
+
+
 /*!
  *  Power up the chip.
  */

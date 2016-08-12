@@ -60,6 +60,8 @@ public:
 
     const Si4455_PartInfo& readPartInfo();
     const Si4455_FuncInfo& readFuncInfo();
+
+    uint8_t readCurrentRSSI();
     
 private:
     enum CommandResult
