@@ -13,7 +13,7 @@
 
 
 #define SI4455_FIFO_SIZE 64
-#define RADIO_CTS_TIMEOUT 10000
+#define RADIO_CTS_TIMEOUT 1000
 
 #define ZETARF_SPI_SETTINGS SPISettings(1000000UL, MSBFIRST, SPI_MODE0)
 
@@ -155,7 +155,7 @@ void ZetaRF::startListening()
  */
 void ZetaRF::startListening(uint8_t channel)
 {
-    startListening(channel, m_packetLength)
+    startListening(channel, m_packetLength);
 }
 
 /*!
@@ -685,7 +685,7 @@ void ZetaRF::resetFifo()
 
 
 /*!
- * Read packet info
+ * Returns information about the length of the variable field in the last packet received, and (optionally) overrides field length.
  */
 Si4455_PacketInfo& ZetaRF::readPacketInfo(uint8_t fieldNum, uint16_t length, uint16_t lenDiff)
 {
