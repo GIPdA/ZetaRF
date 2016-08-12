@@ -9,7 +9,12 @@
 #include <SPI.h>
 
 #include "ZetaRF.h"
-#include "radio_config.h"
+
+#ifdef VARIABLE_LENGTH_ON
+    #include "configs/radio_config_vl.h"
+#else
+    #include "radio_config.h"
+#endif
 
 
 #define SI4455_FIFO_SIZE 64
@@ -80,10 +85,30 @@ void ZetaRF::setChannel(uint8_t channel)
     m_channelNumber = channel;
 }
 
+/*!
+ * Returns the current tuned channel.
+ */
+uint8_t ZetaRF::currentChannel()
+{
+    const Si4455_DeviceState& ds = requestDeviceState();
+    return ds.CURRENT_CHANNEL;
+}
+
+/*!
+ * Returns the current operating state of the device.
+ */
+ZetaRF::DeviceState ZetaRF::deviceState()
+{
+    const Si4455_DeviceState& ds = requestDeviceState();
+    return (DeviceState)(ds.CURR_STATE);
+}
+
+
 
 /*!
  * Set Radio to TX mode, fixed packet length.
  * Uses internal channel number set in @begin().
+ * Do not use it with variable length packets activated, but sendPacket(data, length) instead.
  *
  * @param data Pointer to data to send.
  */
@@ -92,6 +117,12 @@ void ZetaRF::sendPacket(const uint8_t *data)
     sendPacket(m_channelNumber, data, m_packetLength);
 }
 
+/*!
+ * Send data to @a channel.
+ *
+ * @param data Pointer to data to send. When using variable length packets, first byte should be the payload length.
+ * @param length Data length. Includes payload length byte when using variable length packets.
+ */
 void ZetaRF::sendPacket(const uint8_t *data, uint8_t length)
 {
     sendPacket(m_channelNumber, data, length);
@@ -99,6 +130,7 @@ void ZetaRF::sendPacket(const uint8_t *data, uint8_t length)
 
 /*!
  * Set Radio to TX mode, fixed packet length.
+ * Do not use it with variable length packets activated, but sendPacket(channel, data, length) instead.
  *
  * @param channel Channel to send data to.
  * @param data Pointer to data to send.
@@ -112,8 +144,8 @@ void ZetaRF::sendPacket(uint8_t channel, const uint8_t *data)
  * Send data to @a channel.
  *
  * @param channel Channel to send data to.
- * @param data Pointer to data to send.
- * @param length Data length.
+ * @param data Pointer to data to send. When using variable length packets, first byte should be the payload length.
+ * @param length Data length. Includes payload length byte when using variable length packets.
  */
 void ZetaRF::sendPacket(uint8_t channel, const uint8_t *data, uint8_t length)
 {
@@ -145,7 +177,12 @@ void ZetaRF::sendPacket(uint8_t channel, const uint8_t *data, uint8_t length)
  */
 void ZetaRF::startListening()
 {
+#ifdef VARIABLE_LENGTH_ON
+    // Listening on 0 length is needed for variable length packets
+    startListening(m_channelNumber, 0);
+#else
     startListening(m_channelNumber);
+#endif
 }
 
 /*!
@@ -155,7 +192,12 @@ void ZetaRF::startListening()
  */
 void ZetaRF::startListening(uint8_t channel)
 {
+#ifdef VARIABLE_LENGTH_ON
+    // Listening on 0 length is needed for variable length packets
+    startListening(channel, 0);
+#else
     startListening(channel, m_packetLength);
+#endif
 }
 
 /*!
@@ -218,8 +260,8 @@ uint8_t ZetaRF::readPacket(uint8_t *data)
 
     // Read FIFO info to known how many bytes are pending
     Si4455_FifoInfo &fi = readFifoInfo(0);
-    //Serial.print("Read: ");
-    //Serial.println(fi.RX_FIFO_COUNT);
+    // Serial.print("Read: ");
+    // Serial.println(fi.RX_FIFO_COUNT);
 
     const bool dataRemaining = (fi.RX_FIFO_COUNT > m_packetLength);
 
@@ -698,14 +740,14 @@ Si4455_PacketInfo& ZetaRF::readPacketInfo(uint8_t fieldNum, uint16_t length, uin
 {
     const uint8_t buffer[] = {
         0x16,
-        (fieldNum & 0x1F),
+        (uint8_t)(fieldNum & 0x1F),
         (uint8_t)(length >> 8),
         (uint8_t)(length),
         (uint8_t)(lenDiff >> 8),
         (uint8_t)(lenDiff)
     };
 
-    sendCommandAndGetResponse(buffer, 6,
+    sendCommandAndGetResponse(buffer, (fieldNum == 0 ? 1 : 6),
                               m_commandReply.RAW, 2);
     return m_commandReply.PACKET_INFO;
 }

@@ -8,6 +8,14 @@
 
 #include "si4455_defs.h"
 
+// Activate variable length packets. For it to work, listening need to be on "length = 0" and full
+//  packet with length byte needs to be sent (=payload+1).
+// When activated, listening defaults on length = 0 when using startListening() 
+//  (unless specifing custom length in startListening(channel, length)).
+#define VARIABLE_LENGTH_ON
+
+
+// Pretty names for reply packets
 typedef si4455_reply_FIFO_INFO_map      Si4455_FifoInfo;
 typedef si4455_reply_GPIO_PIN_CFG_map   Si4455_GpioPinConfig;
 typedef si4455_reply_GET_INT_STATUS_map Si4455_InterruptStatus;
@@ -31,14 +39,32 @@ typedef si4455_reply_GET_CHIP_STATUS_map    Si4455_ChipStatus;
 typedef si4455_reply_PACKET_INFO_map    Si4455_PacketInfo;
 
 
+/*!
+ * ZetaRF class
+ */
 class ZetaRF
 {
 public:
+    enum DeviceState
+    {
+        Sleep = 1,
+        SpiActive = 2,
+        Ready = 3,
+        Ready2 = 4,
+        TxTune = 5,
+        RxTune = 6,
+        Tx = 7,
+        Rx = 8
+    };
+
     ZetaRF(int csPin, int shutdownPin, int irqPin);
 
     bool begin(uint8_t channel = 0, uint8_t packetLength = 0 /* 0 = default packet length defined by ZETARF_PACKET_LENGTH*/);
 
     void setChannel(uint8_t channel);
+    uint8_t currentChannel();
+
+    DeviceState deviceState();
 
     void sendPacket(const uint8_t *data);
     void sendPacket(const uint8_t *data, uint8_t length);
