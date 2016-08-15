@@ -166,6 +166,7 @@ struct si4455_reply_GET_CHIP_STATUS_map
     uint8_t  CHIP_PEND;
     uint8_t  CHIP_STATUS;
     uint8_t  CMD_ERR_STATUS;
+    uint8_t  CMD_ERR_CMD_ID;
 };
 
 struct si4455_reply_REQUEST_DEVICE_STATE_map {
@@ -1887,7 +1888,7 @@ union si4455_cmd_reply_union
 
 
 //GET_CHIP_STATUS REPLY
-#define SI4455_CMD_REPLY_COUNT_GET_CHIP_STATUS                                 3
+#define SI4455_CMD_REPLY_COUNT_GET_CHIP_STATUS        3
 #define SI4455_CMD_GET_CHIP_STATUS_REP_CHIP_PEND_TYPE bitfield
 #define SI4455_CMD_GET_CHIP_STATUS_REP_CHIP_PEND_SIZE 8
 #define SI4455_CMD_GET_CHIP_STATUS_REP_CHIP_PEND_MASK 0xFF
@@ -2028,8 +2029,6 @@ union si4455_cmd_reply_union
 #define SI4455_CMD_ID_GET_CHIP_STATUS                                          0x23
 //GET_CHIP_STATUS ARGS
 #define SI4455_CMD_ARG_COUNT_GET_CHIP_STATUS                                   2
-//GET_CHIP_STATUS REPLY
-#define SI4455_CMD_REPLY_COUNT_GET_CHIP_STATUS                                 3
 
 #define SI4455_CMD_ID_START_TX                                                 0x31
 //START_TX ARGS

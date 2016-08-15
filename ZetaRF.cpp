@@ -11,9 +11,11 @@
 #include "ZetaRF.h"
 
 #ifdef VARIABLE_LENGTH_ON
-    #include "configs/radio_config_vl.h"
+    #include "configs/radio_config_vl_crc_pre10_sync4_pay8.h"
+    #warning Using variable length packets
 #else
-    #include "radio_config.h"
+    #include "configs/radio_config_fixed_crc_pre10_sync4_pay8.h"
+    #warning Using fixed length packets
 #endif
 
 
@@ -70,6 +72,15 @@ bool ZetaRF::begin(uint8_t channel, uint8_t packetLength)
     // Read ITs, clear pending ones
     readInterruptStatus(0, 0, 0);
 
+    // Configure FRR
+    setProperties(0x02, // Group ID
+                  4,    // 4 registers to set
+                  0x00, // Start at index 0 (FRR A)
+                  SI4455_PROP_FRR_CTL_A_MODE_FRR_A_MODE_ENUM_CURRENT_STATE,
+                  SI4455_PROP_FRR_CTL_B_MODE_FRR_B_MODE_ENUM_INT_PH_PEND,
+                  SI4455_PROP_FRR_CTL_C_MODE_FRR_C_MODE_ENUM_INT_MODEM_PEND,
+                  SI4455_PROP_FRR_CTL_D_MODE_FRR_D_MODE_ENUM_INT_CHIP_PEND);
+
     if (!retryCount) return false;
     return true;
 }
@@ -99,8 +110,7 @@ uint8_t ZetaRF::currentChannel()
  */
 ZetaRF::DeviceState ZetaRF::deviceState()
 {
-    const Si4455_DeviceState& ds = requestDeviceState();
-    return (DeviceState)(ds.CURR_STATE);
+    return (DeviceState)(readFrrA().FRR_A_VALUE & 0x0F);
 }
 
 
@@ -154,13 +164,12 @@ void ZetaRF::sendPacket(uint8_t channel, const uint8_t *data, uint8_t length)
     readInterruptStatus(0, 0, 0);
     
     // Wait when not ready
-    const Si4455_DeviceState &ds = requestDeviceState();
+    DeviceState s = deviceState();
     uint16_t counter = 0xF000;  // Avoid stalling
     do {
         --counter;
-        requestDeviceState();   // ds is updated
-    } while ((ds.CURR_STATE == SI4455_CMD_REQUEST_DEVICE_STATE_REP_MAIN_STATE_ENUM_TX ||
-             ds.CURR_STATE == SI4455_CMD_REQUEST_DEVICE_STATE_REP_MAIN_STATE_ENUM_TX_TUNE) && 
+        s = deviceState();
+    } while ((s == Tx || s == TxTune) && 
              counter != 0);
 
     // Fill the TX fifo with data
@@ -224,7 +233,9 @@ void ZetaRF::startListening(uint8_t channel, uint8_t length)
  */
 bool ZetaRF::checkTransmitted()
 {
-    readInterruptStatus(0, 0, 0);
+    if (irqAsserted()) {
+        readInterrupts();
+    }
 
     if (m_dataTransmittedFlag) {
         m_dataTransmittedFlag = false;
@@ -239,7 +250,9 @@ bool ZetaRF::checkTransmitted()
  */
 bool ZetaRF::checkReceived()
 {
-    const Si4455_InterruptStatus &is = readInterruptStatus(0, 0, 0);
+    if (irqAsserted()) {
+        readInterrupts();
+    }
 
     if (m_dataAvailableFlag) {
         m_dataAvailableFlag = false;
@@ -253,33 +266,83 @@ bool ZetaRF::checkReceived()
 /*!
  * Read packet from Rx FIFO.
  * @a data must point to a valid array with a size of at least the packet length.
+ *
+ * @return Bytes read on success, -1 otherwise.
  */
-uint8_t ZetaRF::readPacket(uint8_t *data)
+int ZetaRF::readPacket(uint8_t *data)
 {
-    if (!data) return 0;
+    if (!data) return -1;
 
     // Read FIFO info to known how many bytes are pending
     Si4455_FifoInfo &fi = readFifoInfo(0);
-    // Serial.print("Read: ");
-    // Serial.println(fi.RX_FIFO_COUNT);
+    //Serial.print("Read: ");
+    //Serial.print(fi.RX_FIFO_COUNT);
+
+#ifdef VARIABLE_LENGTH_ON
+    // Read size
+    readRxFifo(data, 1);
+    uint8_t size = *data;   // Variable length: first byte = frame size
+
+    //Serial.print(" - ");
+    //Serial.println(size);
+
+    if (size > m_packetLength) {
+        // Error
+        resetRxFifo();
+        clearInterrupts();
+        //Serial.println("Packet error1");
+        return -1;
+    }
+    
+    const bool dataRemaining = (fi.RX_FIFO_COUNT-1 > size);
+
+    if (!dataRemaining && ((fi.RX_FIFO_COUNT-1) > m_packetLength || size != (fi.RX_FIFO_COUNT-1))) {
+        // Error
+        resetRxFifo();
+        clearInterrupts();
+        //Serial.println("Packet error2");
+        return -1;
+    }
+
+    // Read FIFO
+    readRxFifo(data+1, size);
+
+    if (dataRemaining) {
+        m_dataAvailableFlag = true;
+    }
+
+    return size+1;
+
+#else   // FIXED PACKET LENGTH
+    //Serial.println();
 
     const bool dataRemaining = (fi.RX_FIFO_COUNT > m_packetLength);
 
+    if (fi.RX_FIFO_COUNT < m_packetLength) {
+        // Error
+        resetRxFifo();
+        clearInterrupts();
+        //Serial.println("Packet error1");
+        return -1;
+    }
+
     // Read FIFO
-    readRxFifo(data, (fi.RX_FIFO_COUNT > m_packetLength) ? m_packetLength : fi.RX_FIFO_COUNT);
-    //readRxFifo(data, m_packetLength);
+    readRxFifo(data, m_packetLength);
 
     if (dataRemaining) {
         m_dataAvailableFlag = true;
     }
 
     return m_packetLength;
+#endif
 }
 
 
 bool ZetaRF::isTxFifoAlmostEmpty()
 {
-    readInterruptStatus(0, 0, 0);
+    if (irqAsserted()) {
+        readInterrupts();        
+    }
 
     if (m_txFifoAlmostEmptyFlag) {
         m_txFifoAlmostEmptyFlag = false;
@@ -291,8 +354,10 @@ bool ZetaRF::isTxFifoAlmostEmpty()
 
 bool ZetaRF::isRxFifoAlmostFull()
 {
-    readInterruptStatus(0, 0, 0);
-    
+    if (irqAsserted()) {
+        readInterrupts();
+    }
+
     if (m_rxFifoAlmostFullFlag) {
         m_rxFifoAlmostFullFlag = false;
         return true;
@@ -394,7 +459,7 @@ ZetaRF::CommandResult ZetaRF::initialize(const uint8_t* configArray)
             }    
         }
 
-        if (!irqLevel()) {
+        if (irqAsserted()) {
             // Get and clear all interrupts.  An error has occured...
             Si4455_InterruptStatus &it = readInterruptStatus(0, 0, 0);
             if (it.CHIP_PEND & SI4455_CMD_GET_CHIP_STATUS_REP_CMD_ERROR_PEND_MASK) {
@@ -531,25 +596,18 @@ Si4455_InterruptStatus& ZetaRF::readInterruptStatus(uint8_t clearPendingPH, uint
     sendCommandAndGetResponse(buffer, SI4455_CMD_ARG_COUNT_GET_INT_STATUS,
                               m_commandReply.RAW, SI4455_CMD_REPLY_COUNT_GET_INT_STATUS);
 
-    if (m_commandReply.GET_INT_STATUS.PH_PEND & SI4455_CMD_GET_INT_STATUS_REP_PACKET_SENT_PEND_BIT) {
-        m_dataTransmittedFlag = true;
-    }
-    if (m_commandReply.GET_INT_STATUS.PH_PEND & SI4455_CMD_GET_INT_STATUS_REP_PACKET_RX_PEND_BIT) {
-        // @todo Add circular buffer?
-        m_dataAvailableFlag = true;
-    }
 
-    if (m_commandReply.GET_INT_STATUS.PH_PEND & SI4455_CMD_GET_INT_STATUS_REP_CRC_ERROR_PEND_BIT) {
-        m_crcErrorFlag = true;
-        // Reset Fifo
-        resetFifo();
-    }
+    processPHInterruptPending(m_commandReply.GET_INT_STATUS.PH_PEND);
+    processModemInterruptPending(m_commandReply.GET_INT_STATUS.MODEM_PEND);
+    processChipInterruptPending(m_commandReply.GET_INT_STATUS.CHIP_PEND);
 
-    if (m_commandReply.GET_INT_STATUS.PH_PEND & SI4455_CMD_GET_INT_STATUS_REP_TX_FIFO_ALMOST_EMPTY_PEND_BIT) {
-        m_txFifoAlmostEmptyFlag = true;
+    if (m_commandError) {
+        m_commandError = false;
+        startListening();
     }
-    if (m_commandReply.GET_INT_STATUS.PH_PEND & SI4455_CMD_GET_INT_STATUS_REP_RX_FIFO_ALMOST_FULL_PEND_BIT) {
-        m_rxFifoAlmostFullFlag = true;
+    if (m_crcErrorFlag) {
+        m_crcErrorFlag = false;
+        startListening();
     }
 
     return m_commandReply.GET_INT_STATUS;
@@ -563,6 +621,139 @@ Si4455_InterruptStatus& ZetaRF::readInterruptStatus(uint8_t clearPendingPH, uint
     // m_commandReply.GET_INT_STATUS.CHIP_PEND      = radioCmd[6];
     // m_commandReply.GET_INT_STATUS.CHIP_STATUS    = radioCmd[7];
 }
+
+/*!
+ * Clear all pending interrupts
+ */
+void ZetaRF::clearInterrupts()
+{
+    const uint8_t buffer[] = {
+        SI4455_CMD_ID_GET_INT_STATUS,
+        0x00,
+        0x00,
+        0x00
+    };
+
+    sendCommand(buffer, SI4455_CMD_ARG_COUNT_GET_INT_STATUS);
+}
+
+/*!
+ * Read pending interrupts via FRR
+ */
+void ZetaRF::readInterrupts()
+{
+    // B: PH_PEND
+    // C: MODEM_PEND
+    // D: CHIP_PEND
+    Si4455_FrrB &frrb = readFrrB(3);
+
+    bool clearIT = false;
+    clearIT |= processPHInterruptPending(frrb.FRR_B_VALUE);
+    clearIT |= processModemInterruptPending(frrb.FRR_C_VALUE);
+    clearIT |= processChipInterruptPending(frrb.FRR_D_VALUE);
+
+    if (clearIT) {
+        clearInterrupts();
+    }
+
+    if (m_commandError) {
+        m_commandError = false;
+        startListening();
+    }
+    if (m_crcErrorFlag) {
+        m_crcErrorFlag = false;
+        startListening();
+    }
+}
+
+bool ZetaRF::processPHInterruptPending(uint8_t phPend)
+{
+    bool clearIT = false;
+
+    if (phPend & SI4455_CMD_GET_INT_STATUS_REP_PACKET_SENT_PEND_BIT) {
+        m_dataTransmittedFlag = true;
+        clearIT = true;
+    }
+    if (phPend & SI4455_CMD_GET_INT_STATUS_REP_PACKET_RX_PEND_BIT) {
+        // @todo Add circular buffer?
+        m_dataAvailableFlag = true;
+        clearIT = true;
+    }
+
+    if (phPend & SI4455_CMD_GET_INT_STATUS_REP_CRC_ERROR_PEND_BIT) {
+        m_crcErrorFlag = true;
+        resetFifo();
+        //Serial.println("CRC Error");
+        clearIT = true;
+    }
+
+    if (phPend & SI4455_CMD_GET_INT_STATUS_REP_TX_FIFO_ALMOST_EMPTY_PEND_BIT) {
+        m_txFifoAlmostEmptyFlag = true;
+        clearIT = true;
+    }
+    if (phPend & SI4455_CMD_GET_INT_STATUS_REP_RX_FIFO_ALMOST_FULL_PEND_BIT) {
+        m_rxFifoAlmostFullFlag = true;
+        clearIT = true;
+    }
+
+    return clearIT;
+}
+
+bool ZetaRF::processModemInterruptPending(uint8_t modemPend)
+{
+    bool clearIT = false;
+
+    if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_INVALID_SYNC_PEND_BIT) {
+        //Serial.println("Invalid Sync");
+        clearIT = true;
+    }
+    if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_INVALID_PREAMBLE_PEND_BIT) {
+        //Serial.println("Invalid Preamble");
+        clearIT = true;
+    }
+
+    if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_PREAMBLE_DETECT_PEND_BIT) {
+        //clearIT = true;
+    }
+    if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_SYNC_DETECT_PEND_BIT) {
+        //clearIT = true;
+    }
+
+    if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_RSSI_PEND_BIT) {
+        //clearIT = true;
+    }
+
+    return clearIT;
+}
+
+bool ZetaRF::processChipInterruptPending(uint8_t chipPend)
+{
+    bool clearIT = false;
+
+    if (chipPend & SI4455_CMD_GET_INT_STATUS_REP_FIFO_UNDERFLOW_OVERFLOW_ERROR_PEND_BIT) {
+        resetFifo();
+        //Serial.println("FIFO Under/Overflow Error");
+        clearIT = true;
+    }
+    if (chipPend & SI4455_CMD_GET_INT_STATUS_REP_CMD_ERROR_PEND_BIT) {
+        resetFifo();
+        // clearInterrupts();
+        // startListening();
+        m_commandError = true;
+        //Serial.println("Cmd Error");
+        clearIT = true;
+    }
+
+    if (chipPend & SI4455_CMD_GET_INT_STATUS_REP_STATE_CHANGE_PEND_BIT) {
+        //clearIT = true;
+    }
+    if (chipPend & SI4455_CMD_GET_INT_STATUS_REP_CHIP_READY_PEND_BIT) {
+        //clearIT = true;
+    }
+
+    return clearIT;
+}
+
 
 /*!
  * Configures the GPIO pins.
@@ -633,7 +824,7 @@ Si4455_Properties& ZetaRF::readProperties(uint8_t group, uint8_t count, uint8_t 
 /*!
  * Sets the value of one or more properties.
  */
-void ZetaRF::setProperties(uint8_t group, uint8_t count, uint8_t property, ...)
+void ZetaRF::setProperties(uint8_t group, uint8_t count, uint8_t propertyIndex, uint8_t data, ...)
 {
     va_list argList;
     uint8_t cmdIndex;
@@ -642,15 +833,16 @@ void ZetaRF::setProperties(uint8_t group, uint8_t count, uint8_t property, ...)
         SI4455_CMD_ID_SET_PROPERTY,
         group,
         count,
-        property
+        propertyIndex,
+        data
     };
 
-    va_start(argList, property);
-    cmdIndex = 4;
+    va_start(argList, data);
+    cmdIndex = 5;
     while (count--) {
         buffer[cmdIndex] = (uint8_t)(va_arg(argList, int));
         cmdIndex++;
-        if (cmdIndex == 15) break;
+        if (cmdIndex == 16) break;
     }
     va_end(argList);
 
@@ -732,6 +924,27 @@ void ZetaRF::resetFifo()
     sendCommand(buffer, SI4455_CMD_ARG_COUNT_FIFO_INFO);
 }
 
+/*!
+ * Reset the internal RX FIFO.
+ */
+void ZetaRF::resetRxFifo()
+{
+    const uint8_t buffer[] = {
+        SI4455_CMD_ID_FIFO_INFO,
+        0x02
+    };
+
+    sendCommand(buffer, SI4455_CMD_ARG_COUNT_FIFO_INFO);
+}
+
+
+/*!
+ * Returns information about the length of the variable field in the last packet received.
+ */
+Si4455_PacketInfo& ZetaRF::readPacketInfo()
+{
+    return readPacketInfo(0, 0, 0);
+}
 
 /*!
  * Returns information about the length of the variable field in the last packet received, and (optionally) overrides field length.
@@ -1146,9 +1359,9 @@ void ZetaRF::setCS() const
     SPI.endTransaction();
 }
 
-bool ZetaRF::irqLevel() const
+bool ZetaRF::irqAsserted() const
 {
-    return (digitalRead(m_irqPin) == HIGH);
+    return (digitalRead(m_irqPin) == LOW);
 }
 
 

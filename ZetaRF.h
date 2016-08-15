@@ -12,7 +12,7 @@
 //  packet with length byte needs to be sent (=payload+1).
 // When activated, listening defaults on length = 0 when using startListening() 
 //  (unless specifing custom length in startListening(channel, length)).
-#define VARIABLE_LENGTH_ON
+//#define VARIABLE_LENGTH_ON
 
 
 // Pretty names for reply packets
@@ -78,7 +78,7 @@ public:
     bool checkTransmitted();
     bool checkReceived();
 
-    uint8_t readPacket(uint8_t *data);
+    int readPacket(uint8_t *data);
 
 
     bool isTxFifoAlmostEmpty();
@@ -88,6 +88,12 @@ public:
     const Si4455_FuncInfo& readFuncInfo();
 
     uint8_t readCurrentRSSI();
+    void resetRxFifo();
+
+    void resetFifo();
+    void clearInterrupts();
+    void readInterrupts();
+    Si4455_ChipStatus& readChipStatus(uint8_t clearPendingChip);
     
 private:
     enum CommandResult
@@ -116,11 +122,16 @@ private:
     void readRxFifo(uint8_t* data, uint8_t length);
 
     Si4455_InterruptStatus& readInterruptStatus(uint8_t clearPendingPH, uint8_t clearPendingModem, uint8_t clearPendingChip);
+    //void clearInterrupts();
+    //void readInterrupts();
+    bool processPHInterruptPending(uint8_t phPend);
+    bool processModemInterruptPending(uint8_t modemPend);
+    bool processChipInterruptPending(uint8_t chipPend);
 
     Si4455_GpioPinConfig& configureGpioPins(uint8_t gpio0, uint8_t gpio1, uint8_t gpio2, uint8_t gpio3, uint8_t nirq, uint8_t sdo, uint8_t genConfig);
     
     Si4455_Properties& readProperties(uint8_t group, uint8_t count, uint8_t startProperty);
-    void setProperties(uint8_t group, uint8_t count, uint8_t property, ...);
+    void setProperties(uint8_t group, uint8_t count, uint8_t property, uint8_t data, ...);
 
     Si4455_DeviceState& requestDeviceState();
     void changeState(uint8_t nextState1);
@@ -129,14 +140,15 @@ private:
 
     
     Si4455_FifoInfo& readFifoInfo(uint8_t fifo = 0);
-    void resetFifo();
+    //void resetFifo();
+    Si4455_PacketInfo& readPacketInfo();
     Si4455_PacketInfo& readPacketInfo(uint8_t fieldNum, uint16_t len, uint16_t lenDiff);
     // @todo Add PacketInfo read
     
-    Si4455_FrrA& readFrrA(uint8_t count);
-    Si4455_FrrB& readFrrB(uint8_t count);
-    Si4455_FrrC& readFrrC(uint8_t count);
-    Si4455_FrrD& readFrrD(uint8_t count);
+    Si4455_FrrA& readFrrA(uint8_t count = 1);
+    Si4455_FrrB& readFrrB(uint8_t count = 1);
+    Si4455_FrrC& readFrrC(uint8_t count = 1);
+    Si4455_FrrD& readFrrD(uint8_t count = 1);
     
     Si4455_CommandBuffer& readCommandBuffer();
 
@@ -144,7 +156,7 @@ private:
 
     Si4455_PhStatus& readPhStatus(uint8_t clearPendingPH);
     Si4455_ModemStatus& readModemStatus(uint8_t clearPendingModem);
-    Si4455_ChipStatus& readChipStatus(uint8_t clearPendingChip);
+    //Si4455_ChipStatus& readChipStatus(uint8_t clearPendingChip);
 
 
 
@@ -163,7 +175,7 @@ private:
     void deassertShutdown() const;
     void clearCS() const;
     void setCS() const;
-    bool irqLevel() const;
+    bool irqAsserted() const;
 
     uint8_t spiReadWriteByte(uint8_t value) const;
     void spiWriteByte(uint8_t value) const;
@@ -190,6 +202,7 @@ private:
     bool m_crcErrorFlag;    // @todo Add getter
     bool m_txFifoAlmostEmptyFlag;
     bool m_rxFifoAlmostFullFlag;
+    bool m_commandError;
 
     const uint8_t *m_radioConfigurationDataArray;
 };
