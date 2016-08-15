@@ -89,11 +89,6 @@ public:
 
     uint8_t readCurrentRSSI();
     void resetRxFifo();
-
-    void resetFifo();
-    void clearInterrupts();
-    void readInterrupts();
-    Si4455_ChipStatus& readChipStatus(uint8_t clearPendingChip);
     
 private:
     enum CommandResult
@@ -122,8 +117,8 @@ private:
     void readRxFifo(uint8_t* data, uint8_t length);
 
     Si4455_InterruptStatus& readInterruptStatus(uint8_t clearPendingPH, uint8_t clearPendingModem, uint8_t clearPendingChip);
-    //void clearInterrupts();
-    //void readInterrupts();
+    void clearInterrupts();
+    void readInterrupts();
     bool processPHInterruptPending(uint8_t phPend);
     bool processModemInterruptPending(uint8_t modemPend);
     bool processChipInterruptPending(uint8_t chipPend);
@@ -140,7 +135,7 @@ private:
 
     
     Si4455_FifoInfo& readFifoInfo(uint8_t fifo = 0);
-    //void resetFifo();
+    void resetFifo();
     Si4455_PacketInfo& readPacketInfo();
     Si4455_PacketInfo& readPacketInfo(uint8_t fieldNum, uint16_t len, uint16_t lenDiff);
     // @todo Add PacketInfo read
@@ -156,7 +151,7 @@ private:
 
     Si4455_PhStatus& readPhStatus(uint8_t clearPendingPH);
     Si4455_ModemStatus& readModemStatus(uint8_t clearPendingModem);
-    //Si4455_ChipStatus& readChipStatus(uint8_t clearPendingChip);
+    Si4455_ChipStatus& readChipStatus(uint8_t clearPendingChip);
 
 
 
