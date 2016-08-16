@@ -89,7 +89,7 @@ bool ZetaRF::begin(uint8_t channel, uint8_t packetLength)
 
 /*!
  * Set the new channel to use for send and receive.
- * You need to call startReceiver() for the new channel to take effect on receive mode.
+ * You need to call startListening() for the new channel to take effect on receive mode.
  *
  * @param channel New channel number.
  */
@@ -369,7 +369,9 @@ bool ZetaRF::isRxFifoAlmostFull()
 }
 
 
-
+/*!
+ * Returns the current RSSI reading from the modem.
+ */
 uint8_t ZetaRF::readCurrentRSSI()
 {
     // Clear RSSI PEND only
@@ -668,6 +670,9 @@ void ZetaRF::readInterrupts()
     }
 }
 
+/*!
+ * Process Packet Handler interrupts
+ */
 bool ZetaRF::processPHInterruptPending(uint8_t phPend)
 {
     bool clearIT = false;
@@ -701,6 +706,9 @@ bool ZetaRF::processPHInterruptPending(uint8_t phPend)
     return clearIT;
 }
 
+/*!
+ * Process Modem interrupts
+ */
 bool ZetaRF::processModemInterruptPending(uint8_t modemPend)
 {
     bool clearIT = false;
@@ -728,6 +736,9 @@ bool ZetaRF::processModemInterruptPending(uint8_t modemPend)
     return clearIT;
 }
 
+/*!
+ * Process Chip interrupts
+ */
 bool ZetaRF::processChipInterruptPending(uint8_t chipPend)
 {
     bool clearIT = false;
@@ -739,8 +750,6 @@ bool ZetaRF::processChipInterruptPending(uint8_t chipPend)
     }
     if (chipPend & SI4455_CMD_GET_INT_STATUS_REP_CMD_ERROR_PEND_BIT) {
         resetFifo();
-        // clearInterrupts();
-        // startListening();
         m_commandError = true;
         //Serial.println("Cmd Error");
         clearIT = true;
