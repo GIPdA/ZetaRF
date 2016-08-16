@@ -3,6 +3,8 @@
  * @brief This file contains the public functions controlling the Si4455 radio chip.
  *
  * http://www.silabs.com/products/wireless/EZRadio/Pages/Si4455.aspx
+ *
+ * License: see LICENSE file
  */
 
 #include <Arduino.h>

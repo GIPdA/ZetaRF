@@ -1,6 +1,8 @@
 /*! @file ZetaRF.h
  *
  * @brief This file contains the public functions controlling the Si4455 radio chip.
+ *
+ * License: see LICENSE file
  */
 
 #ifndef ZETARF_H_
