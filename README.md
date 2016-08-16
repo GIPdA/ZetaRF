@@ -1,7 +1,16 @@
-ZetaRF
+ZetaRF ![Version 1.1.10](https://img.shields.io/badge/Version-0.0.2-blue.svg)
 ======
-**v0.0.1 !Beta!**
+**Written by**: *Benjamin Balga.*
+**Copyright**: ***2016***, *Benjamin Balga*, released under BSD license.
 
+**Supported (tested) Platforms**: *(should be compatible with any platform supporting SPI at 1MHz)*      
+![Basic Arduino](https://img.shields.io/badge/Arduino-AVR-brightgreen.svg)
+![Arduino Zero](https://img.shields.io/badge/Arduino_Zero-SAMD-yellowgreen.svg)
+![Arduino Due](https://img.shields.io/badge/Arduino_Due-SAM-orange.svg)
+![Teensy 2 upto 3.5 including LC](https://img.shields.io/badge/Teensy-2_to_3.5,_LC-brown.svg)
+
+
+## About
 ZetaRF is an Arduino library for ZETA modules from [RF Solutions][2], which implements a Silicon Labs [Si4455][3] Low Current Sub-GHz Transceiver
 
 RF Solutions does not provide ready to use sample code in C/C++ to use their ZETA modules directly, but either PIC ASM code or Arduino library if you interface your module with their CODEC chip. This library enables you to communicate directly with the ZETA module without the CODEC chip.
@@ -17,8 +26,24 @@ This library is based on code examples from Silicon Labs [Wireless Development S
 ZETA module datasheet: <https://www.rfsolutions.co.uk/downloads/1456219226DS-ZETA.pdf>
 
 ## Data Packets
-The Si4455 chip transmit and receive fixed size packets, and you have to set the packet size when initializing the library (see begin()).
-Packet size cannot be changed without resetting the chip (well... maybe).
+The Si4455 chip has two options: variable length or fixed length packets.
+Both cannot be used together, write
+
+	#define VARIABLE_LENGTH_ON
+before including ZetaRF.h to activate variable length packets.
+
+### Fixed size packets
+Default packet size is 8 bytes, but you can specify the size you want by passing the value to `begin(channel, packet size)`.
+
+Receive and sending methods use this packet length by default unless you specify the length to receive/send.
+
+The buffer pointed by data in `readPacket()` must be at least the size of the packet.
+
+### Variable length packets
+When variable length is activated, the first byte in the buffer is the packet length (size byte excluded), at sending and receiving.
+
+To receive variable length packets, listening is done with a length of zero (handled automatically by `startListening()` and `startListening(channel)`).
+
 
 ## Usage
 
@@ -38,19 +63,21 @@ To transmit on a different channel, use:
 
 Returns true when data was successfully sent.
 
+The chip automatically goes back to listening when the transmit is done.
+
 
 
 ### Receive data
 
 #### Switch to receive mode
 
-	void startReceiver();
+	void startListening();
 
-Chip must be in receive mode in order to receive data (listening channel set in begin()). You will need to switch back to receive mode after sending a packet if you want to receive any more data.
+Chip must be in listening mode in order to receive data (listening channel set in `begin()`).
 
 To receive on a different channel, use:
 
-	void startReceiver(uint8_t channel);
+	void startListening(uint8_t channel);
 
 
 #### Check if data is available
@@ -63,9 +90,11 @@ Returns true if data is available.
 
 	uint8_t readPacket(uint8_t *data);
 
-Read a packet from FIFO, returns the number of bytes read.  FIFO has a capacity of 64 bytes.
+Read a packet from FIFO, returns the number of bytes read or -1 on error.  FIFO has a capacity of 64 bytes.
+
 
 See code examples for more details.
+(TODO: add more examples)
 
 
 ## Installation
@@ -74,19 +103,28 @@ Copy the library folder to your Arduino library folder.
 ## Pin connexions
 
 ZETA Pin #|ZETA Module|Arduino|Description
------|---|---|
-1|ANT|-|Antenna (small wire for tests)
-2|GND|GND|Power
-3|SDN|GPIO|Shutdown
-4|VCC|VCC|Power
-5|nIRQ|GPIO|IRQ
-6|NC|-|Not Connected
-7|GPIO1|-
-8|GPIO2|-
-9|SCLK|SCLK|SPI Clock
-10|SDI|MOSI|SPI Master Out
-11|SDO|MISO|SPI Master In
-12|nSEL|CS|Chip Select
+----------|-----------|-------|-----------
+1         |ANT        |-      |Antenna (small wire for tests)
+2         |GND        |GND    |Power
+3         |SDN        |GPIO   |Shutdown
+4         |VCC        |VCC    |Power
+5         |nIRQ       |GPIO   |IRQ
+6         |NC         |-      |Not Connected
+7         |GPIO1      |-      |Not Connected
+8         |GPIO2      |-      |Not Connected
+9         |SCLK       |SCLK   |SPI Clock
+10        |SDI        |MOSI   |SPI Master Out
+11        |SDO        |MISO   |SPI Master In
+12        |nSEL       |CS     |Chip Select
+
+(**Note** - Possible improvement: a GPIO could be used for CTS instead of polling a register)
+
+
+## Configuration files
+The project contains WDS XML configuration files, used to generate `radio_config_xx.h` files, if you want to change some settings. Be careful, it might brake things if you don't know what you're doing.
+
+Note: FRR are used and enforced by the library.
+
 
 ## License
 See LICENSE file.
