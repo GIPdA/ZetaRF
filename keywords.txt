@@ -3,6 +3,7 @@
 #######################################
 
 ZetaRF	KEYWORD1
+DeviceState	KEYWORD1
 Si4455_PartInfo	KEYWORD1
 Si4455_FuncInfo	KEYWORD1
 
@@ -11,8 +12,11 @@ Si4455_FuncInfo	KEYWORD1
 #######################################
 
 begin	KEYWORD2
+setChannel	KEYWORD2
+currentChannel	KEYWORD2
+deviceState	KEYWORD2
 sendPacket	KEYWORD2
-startReceiver	KEYWORD2
+startListening	KEYWORD2
 checkTransmitted	KEYWORD2
 checkReceived	KEYWORD2
 readPacket	KEYWORD2
@@ -20,6 +24,8 @@ isTxFifoAlmostEmpty	KEYWORD2
 isRxFifoAlmostFull	KEYWORD2
 readPartInfo	KEYWORD2
 readFuncInfo	KEYWORD2
+readCurrentRSSI	KEYWORD2
+resetRxFifo	KEYWORD2
 
 #######################################
 # Instances (KEYWORD2)
