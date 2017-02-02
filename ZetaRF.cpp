@@ -42,6 +42,7 @@ ZetaRF::ZetaRF(int csPin, int shutdownPin, int irqPin) :
     m_crcErrorFlag(false),
     m_txFifoAlmostEmptyFlag(false),
     m_rxFifoAlmostFullFlag(false),
+    m_systemError(false),
     m_radioConfigurationDataArray(DefaultRadioConfigurationDataArray)
 {
 }
@@ -368,6 +369,15 @@ bool ZetaRF::isRxFifoAlmostFull()
     return false;
 }
 
+
+/*!
+ * Returns true if a system error occured and reset the error (if any).
+ */
+bool ZetaRF::systemError() const
+{
+    bool error = m_systemError;
+    return error;
+}
 
 /*!
  * Returns the current RSSI reading from the modem.
@@ -1226,6 +1236,7 @@ uint8_t ZetaRF::getResponse(uint8_t* data, uint8_t count)
     if (errorCount == 0) {
         // ERROR! Should never take this long
         // @todo Error callback ?
+        m_systemError = true;
         return 0;
     }
 
@@ -1233,6 +1244,7 @@ uint8_t ZetaRF::getResponse(uint8_t* data, uint8_t count)
         m_ctsWentHigh = true;
     }
 
+    m_systemError = false;
     return ctsVal;
 }
 
@@ -1285,6 +1297,7 @@ void ZetaRF::readData(uint8_t command, uint8_t* data, uint8_t count, bool pollCt
     if (pollCtsFlag) {
         while (!m_ctsWentHigh) {
             pollCts();
+            if (m_systemError) return;
         }
     }
 
@@ -1309,6 +1322,7 @@ void ZetaRF::writeData(uint8_t command, const uint8_t* data, uint8_t count, bool
     if (pollCtsFlag) {
         while (!m_ctsWentHigh) {
             pollCts();
+            if (m_systemError) return;
         }
     }
 
@@ -1329,11 +1343,17 @@ void ZetaRF::writeData(uint8_t command, const uint8_t* data, uint8_t count, bool
 uint8_t ZetaRF::pollCts()
 {
 #ifdef RADIO_USER_CFG_USE_GPIO1_FOR_CTS
+    unsigned long t = millis();
     while (!gpio1Level()) {
-        // Wait...
+        // Wait with timeout...
+        if ((millis()-t) > 1000) {
+            m_systemError = true;
+            return;
+        }
     }
 
     m_ctsWentHigh = true;
+    m_systemError = false;
     return 0xFF;
 #else
     return getResponse(NULL, 0);

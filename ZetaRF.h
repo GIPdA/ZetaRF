@@ -91,6 +91,8 @@ public:
 
     uint8_t readCurrentRSSI();
     void resetRxFifo();
+
+    bool systemError() const;
     
 private:
     enum CommandResult
@@ -200,6 +202,7 @@ private:
     bool m_txFifoAlmostEmptyFlag;
     bool m_rxFifoAlmostFullFlag;
     bool m_commandError;
+    bool m_systemError;
 
     const uint8_t *m_radioConfigurationDataArray;
 };
