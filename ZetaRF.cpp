@@ -700,17 +700,28 @@ bool ZetaRF::processPHInterruptPending(uint8_t phPend)
     if (phPend & SI4455_CMD_GET_INT_STATUS_REP_CRC_ERROR_PEND_BIT) {
         m_crcErrorFlag = true;
         resetFifo();
-        //Serial.println("CRC Error");
+
+#ifdef ZETARF_DEBUG_VERBOSE_ON
+        Serial.println("CRC Error");
+#endif
         clearIT = true;
     }
 
     if (phPend & SI4455_CMD_GET_INT_STATUS_REP_TX_FIFO_ALMOST_EMPTY_PEND_BIT) {
         m_txFifoAlmostEmptyFlag = true;
         clearIT = true;
+
+#ifdef ZETARF_DEBUG_VERBOSE_ON
+        Serial.println("FIFO Almost Empty");
+#endif
     }
     if (phPend & SI4455_CMD_GET_INT_STATUS_REP_RX_FIFO_ALMOST_FULL_PEND_BIT) {
         m_rxFifoAlmostFullFlag = true;
         clearIT = true;
+
+#ifdef ZETARF_DEBUG_VERBOSE_ON
+        Serial.println("FIFO Almost Full");
+#endif
     }
 
     return clearIT;
@@ -724,19 +735,33 @@ bool ZetaRF::processModemInterruptPending(uint8_t modemPend)
     bool clearIT = false;
 
     if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_INVALID_SYNC_PEND_BIT) {
-        //Serial.println("Invalid Sync");
         clearIT = true;
+
+#ifdef ZETARF_DEBUG_VERBOSE_ON
+        Serial.println("Invalid Sync");
+#endif
     }
     if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_INVALID_PREAMBLE_PEND_BIT) {
-        //Serial.println("Invalid Preamble");
         clearIT = true;
+
+#ifdef ZETARF_DEBUG_VERBOSE_ON
+        Serial.println("Invalid Preamble");
+#endif
     }
 
     if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_PREAMBLE_DETECT_PEND_BIT) {
         //clearIT = true;
+
+#ifdef ZETARF_DEBUG_VERBOSE_ON
+        Serial.println("Detected Preamble");
+#endif
     }
     if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_SYNC_DETECT_PEND_BIT) {
         //clearIT = true;
+
+#ifdef ZETARF_DEBUG_VERBOSE_ON
+        Serial.println("Detected Sync");
+#endif
     }
 
     if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_RSSI_PEND_BIT) {
@@ -755,14 +780,20 @@ bool ZetaRF::processChipInterruptPending(uint8_t chipPend)
 
     if (chipPend & SI4455_CMD_GET_INT_STATUS_REP_FIFO_UNDERFLOW_OVERFLOW_ERROR_PEND_BIT) {
         resetFifo();
-        //Serial.println("FIFO Under/Overflow Error");
         clearIT = true;
+
+#ifdef ZETARF_DEBUG_VERBOSE_ON
+        Serial.println("FIFO Under/Overflow Error");
+#endif
     }
     if (chipPend & SI4455_CMD_GET_INT_STATUS_REP_CMD_ERROR_PEND_BIT) {
         resetFifo();
         m_commandError = true;
-        //Serial.println("Cmd Error");
         clearIT = true;
+
+#ifdef ZETARF_DEBUG_VERBOSE_ON
+        Serial.println("CMD Error");
+#endif
     }
 
     if (chipPend & SI4455_CMD_GET_INT_STATUS_REP_STATE_CHANGE_PEND_BIT) {

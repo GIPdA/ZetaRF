@@ -17,6 +17,8 @@
 //#define VARIABLE_LENGTH_ON
 
 
+//#define ZETARF_DEBUG_VERBOSE_ON
+
 // Pretty names for reply packets
 typedef si4455_reply_FIFO_INFO_map      Si4455_FifoInfo;
 typedef si4455_reply_GPIO_PIN_CFG_map   Si4455_GpioPinConfig;
