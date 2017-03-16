@@ -21,7 +21,7 @@ This library is based on code examples from Silicon Labs [Wireless Development S
 
 **Beta release, everything has not been tested yet!**
 
-> This library may not be directly compatible with any board implementing Si4455 chip! Currently it was only tested with ZETA-868-SO module from RF Solutions.
+> This library may not be directly compatible with any board implementing Si4455 chip! Currently it was only tested with the ZETA-868-SO and ZETA-433-SO modules from RF Solutions.
 
 ZETA module datasheet: <https://www.rfsolutions.co.uk/downloads/1456219226DS-ZETA.pdf>
 
@@ -53,6 +53,19 @@ To receive variable length packets, listening is done with a length of zero (han
 
 
 ## Usage
+
+### Including the SPI header file 
+
+It has been reported that on the latest Arduino IDE you have to explicitly add the following before you include the ZetaRF.h file, even though 
+the SPI.h file is included by the ZetaRF.h file itself. Not doing this will generate many compiler warnings about a 'missing' SPI.h file.
+
+  #include <SPI.h>
+
+### 868 MHz or 433 MHz operation
+
+By default this library configures the Zeta for 868 MHz operation. If you instead have a 433MHz module, then add this before including the ZetaRF.h file:-
+
+  #define FREQ_433 1
 
 ### Send data
 
@@ -132,6 +145,8 @@ ZETA Pin #|ZETA Module|Arduino|Description
 10        |SDI        |MOSI   |Zeta SPI In to Arduino SPI Out
 11        |SDO        |MISO   |Zeta SPI Out to Arduino SPI In
 12        |nSEL       |CS     |Chip Select
+
+(**Note** - On the Arduino Pro Mini it has been reported that the Zeta SDI pin needs connecting to MISO (pin 11), and the SDO to MOSI (pin 12) - the opposite order to that described in the above table.)
 
 (**Note** - Possible improvement: a GPIO could be used for CTS instead of polling a register)
 

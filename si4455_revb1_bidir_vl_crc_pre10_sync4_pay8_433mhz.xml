@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<RCA_ProjectData ProjectName="Bidirectional packet" ChipType="Si4455" ChipRevision="B1" Version="3.2.11.0">
+  <DataItems>
+    <tbpFrequencyAndPower Type="System.Windows.Forms.TabPage">
+      <grbFequencyControl Type="System.Windows.Forms.GroupBox">
+        <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudChannelNumber">
+          <Value>0</Value>
+        </DataItem>
+        <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudCenterFrequency">
+          <Value>433.00000</Value>
+        </DataItem>
+        <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudChannelSpacing">
+          <Value>250</Value>
+        </DataItem>
+      </grbFequencyControl>
+      <grbCrystalControl Type="System.Windows.Forms.GroupBox">
+        <DataItem Type="System.Windows.Forms.CheckBox" Name="chbSi4010Support">
+          <Checked>False</Checked>
+        </DataItem>
+        <DataItem Type="System.Windows.Forms.CheckBox" Name="chbUseExternalTCXO">
+          <Checked>False</Checked>
+        </DataItem>
+        <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudCrystalToleranceTX">
+          <Value>30</Value>
+        </DataItem>
+        <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudCrystalToleranceRX">
+          <Value>30</Value>
+        </DataItem>
+        <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudCrystalFrequency">
+          <Value>30</Value>
+        </DataItem>
+        <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudCrystalCapBank">
+          <Value>82</Value>
+        </DataItem>
+      </grbCrystalControl>
+      <grbPowerAmplifierControl Type="System.Windows.Forms.GroupBox">
+        <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudPaPowerLevel">
+          <Value>79</Value>
+        </DataItem>
+      </grbPowerAmplifierControl>
+    </tbpFrequencyAndPower>
+    <tbpRfParameters Type="System.Windows.Forms.TabPage">
+      <grbInput Type="System.Windows.Forms.GroupBox">
+        <DataItem Type="System.Windows.Forms.RadioButton" Name="rdbRxBw">
+          <Checked>False</Checked>
+        </DataItem>
+        <DataItem Type="System.Windows.Forms.RadioButton" Name="rdbRxTxPpm">
+          <Checked>True</Checked>
+        </DataItem>
+      </grbInput>
+      <grbEzConfigOptions Type="System.Windows.Forms.GroupBox">
+        <pnlRecommendedSettingsBack Type="System.Windows.Forms.Panel">
+          <pnlRecommendedSettingsFront Type="System.Windows.Forms.Panel">
+            <DataItem Type="System.Windows.Forms.DataGridView" Name="dgvEzConfig" />
+          </pnlRecommendedSettingsFront>
+        </pnlRecommendedSettingsBack>
+      </grbEzConfigOptions>
+      <grbRfParameters Type="System.Windows.Forms.GroupBox">
+        <pnlCustomSettingsBack Type="System.Windows.Forms.Panel">
+          <pnlCustomSettingsFront Type="System.Windows.Forms.Panel">
+            <DataItem Type="System.Windows.Forms.ComboBox" Name="cbbModulationType">
+              <SelectedIndex>1</SelectedIndex>
+            </DataItem>
+            <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudDataRate">
+              <Value>128</Value>
+            </DataItem>
+            <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudDeviation">
+              <Value>70</Value>
+            </DataItem>
+            <DataItem Type="NewWDS.Applications.App_Common.CustomContols.NumericUpDownExtended" Name="nudBandwidth">
+              <Value>305</Value>
+            </DataItem>
+            <DataItem Type="System.Windows.Forms.CheckBox" Name="chbManualRxBandwidth">
+              <Checked>False</Checked>
+            </DataItem>
+            <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudRssiThreshold">
+              <Value>79</Value>
+            </DataItem>
+          </pnlCustomSettingsFront>
+        </pnlCustomSettingsBack>
+      </grbRfParameters>
+    </tbpRfParameters>
+    <tbpPacketHandler Type="System.Windows.Forms.TabPage">
+      <pccPacketHandlerConfigurator Type="NewWDS.Applications.App_Common.PacketConfigControl.EZR2_PacketConfigControl">
+        <grbGeneralConfiguration Type="System.Windows.Forms.GroupBox">
+          <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudPacketRxThreshold">
+            <Value>48</Value>
+          </DataItem>
+          <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudPacketTxThreshold">
+            <Value>48</Value>
+          </DataItem>
+          <DataItem Type="System.Windows.Forms.CheckBox" Name="chbGeneralManchesterEncoding">
+            <Checked>True</Checked>
+          </DataItem>
+          <grbManchesterPattern Type="System.Windows.Forms.GroupBox">
+            <DataItem Type="System.Windows.Forms.RadioButton" Name="rdb0eqs01">
+              <Checked>False</Checked>
+            </DataItem>
+            <DataItem Type="System.Windows.Forms.RadioButton" Name="rdb0eqs10">
+              <Checked>True</Checked>
+            </DataItem>
+          </grbManchesterPattern>
+        </grbGeneralConfiguration>
+        <grbPayload Type="System.Windows.Forms.GroupBox">
+          <pnlPayloadBack Type="System.Windows.Forms.Panel">
+            <pnlPayloadFront Type="System.Windows.Forms.Panel">
+              <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudPayloadLength">
+                <Value>8</Value>
+              </DataItem>
+              <haiPayloadContent Type="NewWDS.Applications.App_Common.PacketConfigControl.HexAsciiInputControl">
+                <DataItem Type="System.Windows.Forms.RadioButton" Name="rdbASCII">
+                  <Checked>False</Checked>
+                </DataItem>
+                <DataItem Type="System.Windows.Forms.RadioButton" Name="rdbHEX">
+                  <Checked>True</Checked>
+                </DataItem>
+                <pnlInput Type="System.Windows.Forms.Panel">
+                  <DataItem Type="System.Windows.Forms.MaskedTextBox" Name="mtbInput">
+                    <Text>C5 C5 C5 C5 C5 C5 C5 C5</Text>
+                  </DataItem>
+                </pnlInput>
+              </haiPayloadContent>
+              <DataItem Type="System.Windows.Forms.CheckBox" Name="chbEnableVariablePacketLength">
+                <Checked>True</Checked>
+              </DataItem>
+              <DataItem Type="System.Windows.Forms.RadioButton" Name="rdbCrcHighBytesFirst">
+                <Checked>True</Checked>
+              </DataItem>
+              <DataItem Type="System.Windows.Forms.RadioButton" Name="rdbCrcLowBytesFirst">
+                <Checked>False</Checked>
+              </DataItem>
+              <DataItem Type="System.Windows.Forms.CheckBox" Name="chbPayloadCheckCRC">
+                <Checked>True</Checked>
+              </DataItem>
+              <DataItem Type="System.Windows.Forms.CheckBox" Name="chbPayloadTransmitCRC">
+                <Checked>True</Checked>
+              </DataItem>
+              <pnlCrcSeed Type="System.Windows.Forms.Panel">
+                <DataItem Type="System.Windows.Forms.RadioButton" Name="rdbCrcSeed1">
+                  <Checked>True</Checked>
+                </DataItem>
+                <DataItem Type="System.Windows.Forms.RadioButton" Name="rdbCrcSeed0">
+                  <Checked>False</Checked>
+                </DataItem>
+              </pnlCrcSeed>
+            </pnlPayloadFront>
+          </pnlPayloadBack>
+        </grbPayload>
+        <grbSyncWord Type="System.Windows.Forms.GroupBox">
+          <pnlSyncWordBack Type="System.Windows.Forms.Panel">
+            <pnlSyncWordFront Type="System.Windows.Forms.Panel">
+              <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudSyncWordLength">
+                <Value>4</Value>
+              </DataItem>
+              <DataItem Type="System.Windows.Forms.MaskedTextBox" Name="mtbSyncWord">
+                <Text>2D D4 D2 4D</Text>
+              </DataItem>
+            </pnlSyncWordFront>
+          </pnlSyncWordBack>
+        </grbSyncWord>
+        <grbPreamble Type="System.Windows.Forms.GroupBox">
+          <pnlPreambleBack Type="System.Windows.Forms.Panel">
+            <PnlPreambleFront Type="System.Windows.Forms.Panel">
+              <DataItem Type="System.Windows.Forms.ComboBox" Name="cbbPreamblePattern">
+                <SelectedIndex>0</SelectedIndex>
+              </DataItem>
+              <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudPreambleTxLength">
+                <Value>10</Value>
+              </DataItem>
+              <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudPreambleRXThreshold">
+                <Value>20</Value>
+              </DataItem>
+            </PnlPreambleFront>
+          </pnlPreambleBack>
+        </grbPreamble>
+      </pccPacketHandlerConfigurator>
+    </tbpPacketHandler>
+    <tbpInterrupts Type="System.Windows.Forms.TabPage">
+      <grbColorDescrition Type="System.Windows.Forms.GroupBox" />
+      <grbChipInterrupt Type="System.Windows.Forms.GroupBox">
+        <DataItem Type="System.Windows.Forms.CheckBox" Name="chbEnableChipInterrupt">
+          <Checked>True</Checked>
+        </DataItem>
+        <DataItem Type="NewWDS.Applications.App_Common.ByteStatusControl.ByteStatus" Name="bstChipInterruptStatus">
+          <Enabled>True</Enabled>
+          <Value>108</Value>
+        </DataItem>
+      </grbChipInterrupt>
+      <grbModemInterrupt Type="System.Windows.Forms.GroupBox">
+        <DataItem Type="System.Windows.Forms.CheckBox" Name="chbEnableModemInterrupt">
+          <Checked>False</Checked>
+        </DataItem>
+        <DataItem Type="NewWDS.Applications.App_Common.ByteStatusControl.ByteStatus" Name="bstModemInterruptStatus">
+          <Enabled>False</Enabled>
+          <Value>0</Value>
+        </DataItem>
+      </grbModemInterrupt>
+      <grbPacketHandlerInterrupt Type="System.Windows.Forms.GroupBox">
+        <DataItem Type="System.Windows.Forms.CheckBox" Name="chbEnablePacketHandlerInterrupt">
+          <Checked>True</Checked>
+        </DataItem>
+        <DataItem Type="NewWDS.Applications.App_Common.ByteStatusControl.ByteStatus" Name="bstPacketHandlerInterruptStatus">
+          <Enabled>True</Enabled>
+          <Value>56</Value>
+        </DataItem>
+      </grbPacketHandlerInterrupt>
+    </tbpInterrupts>
+    <tbpGPIO Type="System.Windows.Forms.TabPage">
+      <grbFastResponseRegisters Type="System.Windows.Forms.GroupBox">
+        <DataItem Type="System.Windows.Forms.ComboBox" Name="cbbFrrA">
+          <SelectedIndex>9</SelectedIndex>
+        </DataItem>
+        <DataItem Type="System.Windows.Forms.ComboBox" Name="cbbFrrC">
+          <SelectedIndex>6</SelectedIndex>
+        </DataItem>
+        <DataItem Type="System.Windows.Forms.ComboBox" Name="cbbFrrD">
+          <SelectedIndex>8</SelectedIndex>
+        </DataItem>
+        <DataItem Type="System.Windows.Forms.ComboBox" Name="cbbFrrB">
+          <SelectedIndex>4</SelectedIndex>
+        </DataItem>
+      </grbFastResponseRegisters>
+      <grbGPIO Type="System.Windows.Forms.GroupBox">
+        <DataItem Type="System.Windows.Forms.CheckBox" Name="chbGpio0Pullup">
+          <Checked>False</Checked>
+        </DataItem>
+        <DataItem Type="System.Windows.Forms.ComboBox" Name="cbbGpio0">
+          <SelectedIndex>TRISTATE</SelectedIndex>
+        </DataItem>
+        <DataItem Type="System.Windows.Forms.CheckBox" Name="chbGpio1Pullup">
+          <Checked>False</Checked>
+        </DataItem>
+        <DataItem Type="System.Windows.Forms.ComboBox" Name="cbbGpio1">
+          <SelectedIndex>TRISTATE</SelectedIndex>
+        </DataItem>
+        <DataItem Type="System.Windows.Forms.CheckBox" Name="chbGpio2Pullup">
+          <Checked>False</Checked>
+        </DataItem>
+        <DataItem Type="System.Windows.Forms.ComboBox" Name="cbbGpio2">
+          <SelectedIndex>TRISTATE</SelectedIndex>
+        </DataItem>
+        <DataItem Type="System.Windows.Forms.CheckBox" Name="chbGpio3Pullup">
+          <Checked>False</Checked>
+        </DataItem>
+        <DataItem Type="System.Windows.Forms.ComboBox" Name="cbbGpio3">
+          <SelectedIndex>TRISTATE</SelectedIndex>
+        </DataItem>
+        <DataItem Type="System.Windows.Forms.CheckBox" Name="chbNirqPullup">
+          <Checked>False</Checked>
+        </DataItem>
+        <DataItem Type="System.Windows.Forms.ComboBox" Name="cbbNirq">
+          <SelectedIndex>DONOTHING</SelectedIndex>
+        </DataItem>
+        <DataItem Type="System.Windows.Forms.CheckBox" Name="chbSdoPullup">
+          <Checked>False</Checked>
+        </DataItem>
+        <DataItem Type="System.Windows.Forms.ComboBox" Name="cbbSdo">
+          <SelectedIndex>DONOTHING</SelectedIndex>
+        </DataItem>
+        <DataItem Type="System.Windows.Forms.ComboBox" Name="cbbDriveStrength">
+          <SelectedIndex>0</SelectedIndex>
+        </DataItem>
+      </grbGPIO>
+    </tbpGPIO>
+  </DataItems>
+</RCA_ProjectData>

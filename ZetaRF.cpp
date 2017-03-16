@@ -13,10 +13,18 @@
 #include "ZetaRF.h"
 
 #ifdef VARIABLE_LENGTH_ON
+#ifdef FREQ_433
+    #include "configs/radio_config_vl_crc_pre10_sync4_pay8_433mhz.h"
+#else
     #include "configs/radio_config_vl_crc_pre10_sync4_pay8.h"
+#endif
     #warning Using variable length packets
 #else
+#ifdef FREQ_433
+    #include "configs/radio_config_fixed_crc_pre10_sync4_pay8_433mhz.h"
+#else
     #include "configs/radio_config_fixed_crc_pre10_sync4_pay8.h"
+#endif
     #warning Using fixed length packets
 #endif
 
