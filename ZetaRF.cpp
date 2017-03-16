@@ -51,6 +51,7 @@ ZetaRF::ZetaRF(int csPin, int shutdownPin, int irqPin) :
 bool ZetaRF::begin(uint8_t channel, uint8_t packetLength)
 {
     m_channelNumber = channel;
+    m_systemError = false;
 
     if (packetLength > 0)
         m_packetLength = packetLength;
@@ -61,8 +62,10 @@ bool ZetaRF::begin(uint8_t channel, uint8_t packetLength)
     pinMode(m_irqPin, INPUT_PULLUP);
     pinMode(m_sdnPin, OUTPUT);
 
+
     // Power Up the radio chip
     powerUp();
+
 
     int retryCount = 10;
     // Load radio configuration
@@ -74,6 +77,7 @@ bool ZetaRF::begin(uint8_t channel, uint8_t packetLength)
 
     // Read ITs, clear pending ones
     readInterruptStatus(0, 0, 0);
+
 
     // Configure FRR
     setProperties(0x02, // Group ID
@@ -165,6 +169,8 @@ void ZetaRF::sendPacket(uint8_t channel, const uint8_t *data, uint8_t length)
     if (!data || length == 0) return;
     // Read ITs, clear pending ones
     readInterruptStatus(0, 0, 0);
+
+    if (m_systemError) return;
     
     // Wait when not ready
     DeviceState s = deviceState();
@@ -371,11 +377,12 @@ bool ZetaRF::isRxFifoAlmostFull()
 
 
 /*!
- * Returns true if a system error occured and reset the error (if any).
+ * Returns true if a system error occured (auto clears).
  */
 bool ZetaRF::systemError() const
 {
     bool error = m_systemError;
+    //m_systemError = false;
     return error;
 }
 
@@ -607,8 +614,14 @@ Si4455_InterruptStatus& ZetaRF::readInterruptStatus(uint8_t clearPendingPH, uint
         clearPendingChip
     };
 
+#ifdef ZETARF_DEBUG_VERBOSE_ON
+    Serial.println("Read IT status");
+#endif
+
     sendCommandAndGetResponse(buffer, SI4455_CMD_ARG_COUNT_GET_INT_STATUS,
                               m_commandReply.RAW, SI4455_CMD_REPLY_COUNT_GET_INT_STATUS);
+
+    if (m_systemError) return;
 
 
     processPHInterruptPending(m_commandReply.GET_INT_STATUS.PH_PEND);
@@ -660,6 +673,8 @@ void ZetaRF::readInterrupts()
     // C: MODEM_PEND
     // D: CHIP_PEND
     Si4455_FrrB &frrb = readFrrB(3);
+
+    if (m_systemError) return;
 
     bool clearIT = false;
     clearIT |= processPHInterruptPending(frrb.FRR_B_VALUE);
@@ -942,6 +957,18 @@ void ZetaRF::nopCommand()
     };
 
     sendCommand(buffer, SI4455_CMD_ARG_COUNT_NOP);
+}
+
+
+void ZetaRF::setSystemError()
+{
+    if (m_systemError) return;
+
+    m_systemError = true;
+
+#ifdef ZETARF_DEBUG_VERBOSE_ON
+    Serial.println("System Error!");
+#endif
 }
 
 
@@ -1262,12 +1289,13 @@ uint8_t ZetaRF::getResponse(uint8_t* data, uint8_t count)
 
         setCS();
         errorCount--;
+        delayMicroseconds(100);
     }
 
     if (errorCount == 0) {
         // ERROR! Should never take this long
         // @todo Error callback ?
-        m_systemError = true;
+        setSystemError();
         return 0;
     }
 
@@ -1289,6 +1317,7 @@ void ZetaRF::sendCommand(const uint8_t* data, uint8_t count)
 {
     while (!m_ctsWentHigh) {
         pollCts();
+        if (m_systemError) return;
     }
 
     clearCS();
@@ -1377,8 +1406,8 @@ uint8_t ZetaRF::pollCts()
     unsigned long t = millis();
     while (!gpio1Level()) {
         // Wait with timeout...
-        if ((millis()-t) > 1000) {
-            m_systemError = true;
+        if ((millis()-t) > 300) {
+            setSystemError();
             return;
         }
     }

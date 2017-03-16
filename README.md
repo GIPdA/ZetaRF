@@ -25,12 +25,17 @@ This library is based on code examples from Silicon Labs [Wireless Development S
 
 ZETA module datasheet: <https://www.rfsolutions.co.uk/downloads/1456219226DS-ZETA.pdf>
 
+
+
 ## Data Packets
 The Si4455 chip has two options: variable length or fixed length packets.
 Both cannot be used together, write
 
 	#define VARIABLE_LENGTH_ON
 before including ZetaRF.h to activate variable length packets.
+
+ZetaRF library is optimized for very low latency (a few milliseconds). That costs a bit of reliability, packets may be dropped.
+
 
 ### Fixed size packets
 Default packet size is 8 bytes, but you can specify the size you want by passing the value to `begin(channel, packet size)`.
@@ -43,6 +48,8 @@ The buffer pointed by data in `readPacket()` must be at least the size of the pa
 When variable length is activated, the first byte in the buffer is the packet length (size byte excluded), at sending and receiving.
 
 To receive variable length packets, listening is done with a length of zero (handled automatically by `startListening()` and `startListening(channel)`).
+
+> Few tests have shown that variable packet may not be very reliable, extensive testings are needed.
 
 
 ## Usage
@@ -93,6 +100,15 @@ Returns true if data is available.
 Read a packet from FIFO, returns the number of bytes read or -1 on error.  FIFO has a capacity of 64 bytes.
 
 
+#### Errors
+
+	bool systemError();
+
+Returns true if a system error occured (auto clears). System error happens when the module is not responding correctly. In that case, reset the module by calling begin() again.
+
+
+#### Examples
+
 See code examples for more details.
 (TODO: add more examples)
 
@@ -104,7 +120,7 @@ Copy the library folder to your Arduino library folder.
 
 ZETA Pin #|ZETA Module|Arduino|Description
 ----------|-----------|-------|-----------
-1         |ANT        |-      |Antenna (small wire for tests)
+1         |ANT        |-      |Antenna (small wire for tests works great (86mm long))
 2         |GND        |GND    |Power
 3         |SDN        |GPIO   |Shutdown
 4         |VCC        |VCC    |Power
@@ -113,8 +129,8 @@ ZETA Pin #|ZETA Module|Arduino|Description
 7         |GPIO1      |-      |Not Connected
 8         |GPIO2      |-      |Not Connected
 9         |SCLK       |SCLK   |SPI Clock
-10        |SDI        |MOSI   |SPI Master Out
-11        |SDO        |MISO   |SPI Master In
+10        |SDI        |MOSI   |Zeta SPI In to Arduino SPI Out
+11        |SDO        |MISO   |Zeta SPI Out to Arduino SPI In
 12        |nSEL       |CS     |Chip Select
 
 (**Note** - Possible improvement: a GPIO could be used for CTS instead of polling a register)

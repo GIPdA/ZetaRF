@@ -139,6 +139,8 @@ private:
 
     void nopCommand();
 
+    void setSystemError();
+
     
     Si4455_FifoInfo& readFifoInfo(uint8_t fifo = 0);
     void resetFifo();
