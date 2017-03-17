@@ -621,7 +621,7 @@ Si4455_InterruptStatus& ZetaRF::readInterruptStatus(uint8_t clearPendingPH, uint
     sendCommandAndGetResponse(buffer, SI4455_CMD_ARG_COUNT_GET_INT_STATUS,
                               m_commandReply.RAW, SI4455_CMD_REPLY_COUNT_GET_INT_STATUS);
 
-    if (m_systemError) return;
+    if (m_systemError) return m_commandReply.GET_INT_STATUS; // TODO: Invalid data returned! Clear it before?
 
 
     processPHInterruptPending(m_commandReply.GET_INT_STATUS.PH_PEND);
@@ -1053,6 +1053,7 @@ const Si4455_PartInfo& ZetaRF::readPartInfo()
         SI4455_CMD_ID_PART_INFO
     };
 
+    // TODO: check PART value, seems like MSB is null and it shouldn't be.
     sendCommandAndGetResponse(buffer, SI4455_CMD_ARG_COUNT_PART_INFO,
                               m_commandReply.RAW, SI4455_CMD_REPLY_COUNT_PART_INFO);
     return m_commandReply.PART_INFO;
@@ -1296,6 +1297,7 @@ uint8_t ZetaRF::getResponse(uint8_t* data, uint8_t count)
         // ERROR! Should never take this long
         // @todo Error callback ?
         setSystemError();
+        m_systemError = true; // Fix a strange "system error" bug...
         return 0;
     }
 
