@@ -17,7 +17,6 @@
     #warning Using variable length packets
 #else
     #include "configs/radio_config_fixed_crc_pre10_sync4_pay8.h"
-    #warning Using fixed length packets
 #endif
 
 
