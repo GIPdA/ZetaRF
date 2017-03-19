@@ -17,6 +17,12 @@
 //#define VARIABLE_LENGTH_ON
 
 
+// If you're using a 433MHz Zeta module, add this define in your code before including ZetaRF.h 
+//  for a proper 433MHz operation:
+// Default frequency is 868MHz.
+//#define ZETARF_FREQUENCY_433MHZ
+
+
 //#define ZETARF_DEBUG_VERBOSE_ON
 
 // Pretty names for reply packets
