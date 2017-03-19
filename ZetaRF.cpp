@@ -27,6 +27,7 @@
 #else
     #include "configs/radio_config_fixed_crc_pre10_sync4_pay8.h"
 #endif
+#endif
 
 
 #define SI4455_FIFO_SIZE 64
