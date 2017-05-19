@@ -101,6 +101,8 @@ public:
     void resetRxFifo();
 
     bool systemError() const;
+
+    bool isAlive();
     
 private:
     enum CommandResult

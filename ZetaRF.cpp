@@ -1272,6 +1272,21 @@ Si4455_ChipStatus& ZetaRF::readChipStatus(uint8_t clearPendingChip)
 
 
 /*!
+ * Check the current state of the module, returns false if it is not responding correctly.
+ * It actually reads the device state and check if the value is correct or not.
+ *
+ * @return false if the module is in an incorrect state, true otherwise.
+ */
+bool ZetaRF::isAlive()
+{
+    auto &cs = requestDeviceState();
+
+    if (cs.CURR_STATE == 0 || cs.CURRENT_CHANNEL != m_channelNumber) return false;
+    return true;
+}
+
+
+/*!
  * Gets a command response from the radio chip.
  *
  * @param data  Pointer to where to put the data.
