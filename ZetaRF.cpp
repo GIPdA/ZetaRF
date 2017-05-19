@@ -1452,13 +1452,14 @@ void ZetaRF::deassertShutdown() const
 
 void ZetaRF::clearCS() const
 {
-    SPI.beginTransaction(ZETARF_SPI_SETTINGS);
     digitalWrite(m_csPin, LOW);
+    SPI.beginTransaction(ZETARF_SPI_SETTINGS);
 }
 void ZetaRF::setCS() const
 {
-    digitalWrite(m_csPin, HIGH);
     SPI.endTransaction();
+    delayMicroseconds(1);
+    digitalWrite(m_csPin, HIGH);
 }
 
 bool ZetaRF::irqAsserted() const
