@@ -83,6 +83,8 @@ bool ZetaRF::begin(uint8_t channel, uint8_t packetLength)
         delay(20);
         powerUp();
     }
+    
+    if (retryCount <= 0) return false;
 
     // Read ITs, clear pending ones
     readInterruptStatus(0, 0, 0);
@@ -97,7 +99,6 @@ bool ZetaRF::begin(uint8_t channel, uint8_t packetLength)
                   SI4455_PROP_FRR_CTL_C_MODE_FRR_C_MODE_ENUM_INT_MODEM_PEND,
                   SI4455_PROP_FRR_CTL_D_MODE_FRR_D_MODE_ENUM_INT_CHIP_PEND);
 
-    if (!retryCount) return false;
     return true;
 }
 
