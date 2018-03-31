@@ -1,7 +1,7 @@
-ZetaRF ![Version 1.1.10](https://img.shields.io/badge/Version-0.0.2-blue.svg)
+ZetaRF ![Version 1.1.11](https://img.shields.io/badge/Version-1.1.11-blue.svg)
 ======
 **Written by**: *Benjamin Balga.*
-**Copyright**: ***2016***, *Benjamin Balga*, released under BSD license.
+**Copyright**: ***2018***, *Benjamin Balga*, released under BSD license.
 
 **Supported (tested) Platforms**: *(should be compatible with any platform supporting SPI at 1MHz)*      
 ![Basic Arduino](https://img.shields.io/badge/Arduino-AVR-brightgreen.svg)
