@@ -191,6 +191,10 @@ void ZetaRF::sendPacket(uint8_t channel, const uint8_t *data, uint8_t length)
     } while ((s == Tx || s == TxTune) && 
              counter != 0);
 
+    // TODO: Abort & set error flag?
+    //if (counter == 0) // Abort, module not ready
+    //    return;
+
     // Fill the TX fifo with data
     writeTxFifo(data, length);
 
