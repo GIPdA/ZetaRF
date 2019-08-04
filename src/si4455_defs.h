@@ -260,6 +260,9 @@ union si4455_cmd_reply_union
     struct si4455_reply_PACKET_INFO_map                                    PACKET_INFO;
 };
 
+#define SI4455_FIFO_SIZE 64
+
+
 #define SI4455_CMD_ID_NOP                                                      0x00
 //NOP ARGS
 #define SI4455_CMD_ARG_COUNT_NOP                                               1
@@ -1355,6 +1358,12 @@ union si4455_cmd_reply_union
 #define SI4455_CMD_FIFO_INFO_REP_TX_FIFO_SPACE_MSB  7
 #define SI4455_CMD_FIFO_INFO_REP_TX_FIFO_SPACE_LSB  0
 #define SI4455_CMD_FIFO_INFO_REP_TX_FIFO_SPACE_INDEX 2
+
+#define SI4455_CMD_ID_PACKET_INFO                                              0x16
+//PACKET_INFO ARGS
+// TODO
+//PACKET_INFO REPLY
+// TODO
 
 #define SI4455_CMD_ID_EZCONFIG_CHECK                                           0x19
 //EZCONFIG_CHECK ARGS

@@ -1,21 +1,10 @@
-/*! @file radio_config.h
- * @brief This file contains the automatically generated
- * configurations.
- *
- * @n WDS GUI Version: 3.2.10.0
- * @n Device: Si4455 Rev.: B1                                 
- *
- * @b COPYRIGHT
- * @n Silicon Laboratories Confidential
- * @n Copyright 2015 Silicon Laboratories, Inc.
- * @n http://www.silabs.com
+/*!
+ * @brief Radio configuration data adapted from SiLabs's WDS software.                               
  */
 
-#ifndef RADIO_CONFIG_H_
-#define RADIO_CONFIG_H_
+#pragma once
 
-// USER DEFINED PARAMETERS
-// Define your own parameters here
+#include <cstdint>
 
 // INPUT DATA
 /*
@@ -23,7 +12,8 @@
 // MOD_type: 2    Rsymb(sps): 128000    Fdev(Hz): 70000    RXBW(Hz): 305000    Manchester: 1    AFC_en: 1    Rsymb_error: 0.0    Chip-Version: 2    
 // RF Freq.(MHz): 868    API_TC: 28    fhst: 250000    inputBW: 0    BERT: 0    RAW_dout: 0    D_source: 0    Hi_pfm_div: 0    
 // 
-// # WB filter 2 (BW = 274.83 kHz);  NB-filter 2 (BW = 274.83 kHz) 
+// # WB filter 2 (BW = 274.83 kHz);  NB-filter 2 (BW = 274.83 kHz) 
+
 // 
 // Modulation index: 1
 */
@@ -135,75 +125,27 @@
 #define RF_GPIO_PIN_CFG 0x13, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00
 
 
-// AUTOMATICALLY GENERATED CODE! 
-// DO NOT EDIT/MODIFY BELOW THIS LINE!
-// --------------------------------------------
+namespace ZetaRFConfigs {
 
-#ifndef FIRMWARE_LOAD_COMPILE
-#define RADIO_CONFIGURATION_DATA_ARRAY { \
-        0x07, RF_POWER_UP, \
-        0x06, RF_INT_CTL_ENABLE_2, \
-        0x05, RF_INT_CTL_CHIP_ENABLE_1, \
-        0x08, RF_FRR_CTL_A_MODE_4, \
-        0x05, RF_EZCONFIG_XO_TUNE_1, \
-        0x72, RF_WRITE_TX_FIFO, \
-        0x01, RF_NOP, \
-        0x70, RF_WRITE_TX_FIFO_1, \
-        0x03, RF_EZCONFIG_CHECK, \
-        0x08, RF_GPIO_PIN_CFG, \
-        0x00 \
- }
-#else
-#define RADIO_CONFIGURATION_DATA_ARRAY { 0 }
-#endif
+struct Config868_FixedSize_CRC_Preamble10_Sync4_Payload8
+{
+    constexpr static uint8_t RadioConfigurationDataArray[] {
+	    0x07, RF_POWER_UP, \
+	    0x06, RF_INT_CTL_ENABLE_2, \
+	    0x05, RF_INT_CTL_CHIP_ENABLE_1, \
+	    0x08, RF_FRR_CTL_A_MODE_4, \
+	    0x05, RF_EZCONFIG_XO_TUNE_1, \
+	    0x72, RF_WRITE_TX_FIFO, \
+	    0x01, RF_NOP, \
+	    0x70, RF_WRITE_TX_FIFO_1, \
+	    0x03, RF_EZCONFIG_CHECK, \
+	    0x08, RF_GPIO_PIN_CFG, \
+	    0x00
+	};
 
-// DEFAULT VALUES FOR CONFIGURATION PARAMETERS
-#define RADIO_CONFIGURATION_DATA_RADIO_XO_FREQ_DEFAULT                     30000000L
-#define RADIO_CONFIGURATION_DATA_CHANNEL_NUMBER_DEFAULT                    0x00
-#define RADIO_CONFIGURATION_DATA_RADIO_PACKET_LENGTH_DEFAULT               0x10
-#define RADIO_CONFIGURATION_DATA_RADIO_STATE_AFTER_POWER_UP_DEFAULT        0x01
-#define RADIO_CONFIGURATION_DATA_RADIO_DELAY_CNT_AFTER_RESET_DEFAULT       0x1000
-#define RADIO_CONFIGURATION_DATA_CUSTOM_PAYLOAD_DEFAULT  		           {0x42, 0x55, 0x54, 0x54, 0x4F, 0x4E, 0x31} // BUTTON1 
+    constexpr static uint8_t  DefaultChannel = 0;
+    constexpr static uint8_t  PacketLength = 0x08;
+};
 
-#define RADIO_CONFIGURATION_DATA_RADIO_PATCH_INCLUDED                      0x00
-#define RADIO_CONFIGURATION_DATA_RADIO_PATCH_SIZE                          0x00
-#define RADIO_CONFIGURATION_DATA_RADIO_PATCH                               {  }
+} // namespace ZetaRFConfigs
 
-#ifndef RADIO_CONFIGURATION_DATA_ARRAY
-#error "This property must be defined!"
-#endif
-
-#ifndef RADIO_CONFIGURATION_DATA_RADIO_XO_FREQ
-#define RADIO_CONFIGURATION_DATA_RADIO_XO_FREQ          RADIO_CONFIGURATION_DATA_RADIO_XO_FREQ_DEFAULT 
-#endif
-
-#ifndef RADIO_CONFIGURATION_DATA_CHANNEL_NUMBER
-#define RADIO_CONFIGURATION_DATA_CHANNEL_NUMBER         RADIO_CONFIGURATION_DATA_CHANNEL_NUMBER_DEFAULT 
-#endif
-
-#ifndef RADIO_CONFIGURATION_DATA_RADIO_PACKET_LENGTH
-#define RADIO_CONFIGURATION_DATA_RADIO_PACKET_LENGTH    RADIO_CONFIGURATION_DATA_RADIO_PACKET_LENGTH_DEFAULT 
-#endif
-
-#ifndef RADIO_CONFIGURATION_DATA_RADIO_STATE_AFTER_POWER_UP
-#define RADIO_CONFIGURATION_DATA_RADIO_STATE_AFTER_POWER_UP   RADIO_CONFIGURATION_DATA_RADIO_STATE_AFTER_POWER_UP_DEFAULT 
-#endif
-
-#ifndef RADIO_CONFIGURATION_DATA_RADIO_DELAY_CNT_AFTER_RESET
-#define RADIO_CONFIGURATION_DATA_RADIO_DELAY_CNT_AFTER_RESET  RADIO_CONFIGURATION_DATA_RADIO_DELAY_CNT_AFTER_RESET_DEFAULT 
-#endif
-
-#ifndef RADIO_CONFIGURATION_DATA_CUSTOM_PAYLOAD
-#define RADIO_CONFIGURATION_DATA_CUSTOM_PAYLOAD         RADIO_CONFIGURATION_DATA_CUSTOM_PAYLOAD_DEFAULT 
-#endif
-
-#define RADIO_CONFIGURATION_DATA { \
-                            Radio_Configuration_Data_Array,                            \
-                            RADIO_CONFIGURATION_DATA_CHANNEL_NUMBER,                   \
-                            RADIO_CONFIGURATION_DATA_RADIO_PACKET_LENGTH,              \
-                            RADIO_CONFIGURATION_DATA_RADIO_STATE_AFTER_POWER_UP,       \
-                            RADIO_CONFIGURATION_DATA_RADIO_DELAY_CNT_AFTER_RESET,      \
-                            RADIO_CONFIGURATION_DATA_CUSTOM_PAYLOAD                    \
-                            }
-
-#endif /* RADIO_CONFIG_H_ */
