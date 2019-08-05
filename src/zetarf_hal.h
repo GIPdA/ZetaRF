@@ -68,9 +68,10 @@ public:
         pinMode(IrqPin, INPUT_PULLUP);
         pinMode(ShutdownPin, OUTPUT);
 
-
         digitalWrite(ChipSelect_pin, HIGH);
-        putInShutdown();
+
+        SPI.begin();
+        //putInShutdown();
         return true;
     }
 
@@ -86,7 +87,6 @@ public:
 
     void putInShutdown()
     {
-        // Put in shutdown
         digitalWrite(ShutdownPin, HIGH);
     }
     void releaseFromShutdown()
@@ -111,7 +111,7 @@ public:
     {
         if (m_inSpiTransaction) {
             endSpiTransaction();
-            delayMicroseconds(5);
+            delayMicroseconds(100);
         }
         beginSpiTransaction();
     }

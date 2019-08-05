@@ -11,6 +11,15 @@
 
 #include "flagset.hpp"
 
+#define ZETARF_DEBUG_ON
+
+#if defined(ZETARF_DEBUG_ON)
+    #define debug(...)   Serial.print(__VA_ARGS__)
+    #define debugln(...) Serial.println(__VA_ARGS__)
+#else
+    #define debug(...)
+    #define debugln(...)
+#endif
 
 // Pretty names for reply packets
 typedef si4455_reply_FIFO_INFO_map      Si4455_FifoInfo;
@@ -125,7 +134,6 @@ public:
     //! Begin the library
     bool beginWithConfigurationDataArray(uint8_t const* configArray)
     {
-        SPI.begin();
         hal.initialize();
 
         powerUp();
@@ -369,272 +377,8 @@ public:
     }
 
 
-private:
 
-    //! Power up the chip.
-    void powerUp()
-    {
-      // Hardware reset the chip
-      hardwareReset();
-
-      // Wait until reset timeout or Reset IT signal
-      //for (unsigned int wDelay = 0; wDelay < RadioConfiguration.Radio_Delay_Cnt_After_Reset; wDelay++);
-      delay(100);
-    }
-
-    //! Load all properties and commands with a list of NULL terminated commands.
-    //! Call @reset before.
-    bool initialize(uint8_t const* configArray)
-    {
-        // While cycle as far as the pointer points to a command
-        while (*configArray != 0x00) {
-            // Commands structure in the array:
-            // --------------------------------
-            // LEN | <LEN length of data>
-
-            uint8_t cmdBytesCount = *configArray++;
-
-            if (cmdBytesCount > 16u) { // EZConfig
-                // Initial configuration of Si4x55
-                if (*configArray == SI4455_CMD_ID_WRITE_TX_FIFO) {
-                    if (cmdBytesCount > 128u) {
-                        // Number of command bytes exceeds maximal allowable length
-                        // @todo May need to send NOP to send more than 128 bytes (check documentation)
-                        Serial.println("More than 128 bytes");
-                        return false;
-                    }
-
-                    // Load array to the device
-                    configArray++;
-                    writeEZConfigArray(configArray, cmdBytesCount - 1);
-
-                    // Point to the next command
-                    configArray += cmdBytesCount - 1;
-
-                    // Continue command interpreter
-                    continue;
-                } else {
-                    // Number of command bytes exceeds maximal allowable length
-                    Serial.println("Too much bytes");
-                    return false;
-                }
-            }
-
-            // Non-EZConfig command
-            uint8_t radioCmd[16];
-            for (uint8_t col = 0; col < cmdBytesCount; col++) {
-                radioCmd[col] = *configArray;
-                configArray++;
-            }
-
-            uint8_t response {0};
-            if (!sendCommandAndReadResponse(radioCmd, cmdBytesCount, &response, 1)) {
-                // Timeout occured
-                Serial.println("Cmd Timeout");
-                return false;
-            }
-
-            // Check response byte for EZCONFIG_CHECK command
-            if (radioCmd[0] == SI4455_CMD_ID_EZCONFIG_CHECK) {
-                if (response) {// != SI4455_CMD_EZCONFIG_CHECK_REP_RESULT_ENUM_VALID) {
-                    // EZConfig failed, either SI4455_CMD_EZCONFIG_CHECK_REP_RESULT_ENUM_BAD_CHECKSUM or SI4455_CMD_EZCONFIG_CHECK_REP_RESULT_ENUM_INVALID_STATE
-                    Serial.println("EZConfig Check error");
-                    return false;
-                }
-            }
-
-            if (hal.isIrqAsserted()) {
-                // Get and clear all interrupts. An error has occured...
-                Si4455_InterruptStatus const& it = cmd_readAndClearInterruptStatus();
-                if (it.CHIP_PEND & SI4455_CMD_GET_CHIP_STATUS_REP_CMD_ERROR_PEND_MASK) {
-                    // Command error
-                    Serial.println("Cmd Error");
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    }
-
-    //! Writes data byte(s) to the EZConfig array (array generated from EZConfig tool).
-    void writeEZConfigArray(uint8_t const* ezConfigArray, uint8_t count)
-    {
-        writeData(SI4455_CMD_ID_WRITE_TX_FIFO, ezConfigArray, count);
-    }
-
-
-    //! Read a packet from RX FIFO, with size checks
-    ReadPacketResult readPacket(Si4455_FifoInfo const& fifoInfo, uint8_t* data, uint8_t byteCount)
-    {
-        bool const dataRemaining { (fifoInfo.RX_FIFO_COUNT > byteCount) };
-
-        Serial.println(fifoInfo.RX_FIFO_COUNT);
-
-        if (byteCount > fifoInfo.RX_FIFO_COUNT) {
-            //cmd_resetRxFifo();
-            //cmd_clearAllPendingInterrupts();
-            return ReadPacketResult::NotEnoughDataInFifo;
-        }
-
-        clearStatus(Status::DataAvailable);
-
-        // Read FIFO
-        cmd_readRxFifo(data, byteCount);
-
-        if (dataRemaining)
-            raiseStatus(Status::DataAvailable);
-
-        updateStatus();
-
-        return statusNoError() ? ReadPacketResult::Success : ReadPacketResult::RequestFailed;
-    }
-
-
-    //! Ask to start listening on given channel with given packet length
-    bool startListening(uint8_t channel, uint8_t packetLength)
-    {
-        cmd_clearAllPendingInterrupts();
-
-        // Start Receiving packet on channel, START immediately, Packet n bytes long
-        cmd_startRx(channel, 0, packetLength,
-                    SI4455_CMD_START_RX_ARG_RXTIMEOUT_STATE_ENUM_RX,
-                    SI4455_CMD_START_RX_ARG_RXVALID_STATE_ENUM_RX,
-                    SI4455_CMD_START_RX_ARG_RXINVALID_STATE_ENUM_RX);
-
-        return lastCommandSucceeded();
-    }
-
-
-    void readAndProcessPendingInterrupts()
-    {
-        Si4455_InterruptStatus const& is {cmd_readInterruptStatus(0,0,0)}; // Read and clear all pending interrupts
-
-        processPacketHandlerInterruptPending(is.PH_PEND);
-        processModemInterruptPending(is.MODEM_PEND);
-        processChipInterruptPending(is.CHIP_PEND);
-    }
-
-    //! Read pending interrupts via FRR
-    void updateStatus()
-    {
-        // FRR B: PH_PEND
-        // FRR C: MODEM_PEND
-        // FRR D: CHIP_PEND
-        Si4455_FrrB const& frrb = cmd_readFrrB(3);
-
-        /*if (lastCommandFailed())
-            return;//*/
-
-        //clearStatus();
-
-        bool clearIT {false};
-        clearIT |= processPacketHandlerInterruptPending(frrb.FRR_B_VALUE);
-        clearIT |= processModemInterruptPending(frrb.FRR_C_VALUE);
-        clearIT |= processChipInterruptPending(frrb.FRR_D_VALUE);
-
-        if (clearIT)
-            cmd_clearAllPendingInterrupts();
-
-        // TODO: check how to implement properly this auto-recovery and if it is really needed
-        //if (m_deviceStatus & (CommandError|CrcError)) // auto recovery
-          //  startListening();
-    }
-
-    //! Process Packet Handler interrupts
-    //! @return true to clear interrupts, false otherwise
-    bool processPacketHandlerInterruptPending(uint8_t phPend)
-    {
-        bool clearIT {false};
-
-        if (phPend & SI4455_CMD_GET_INT_STATUS_REP_PACKET_SENT_PEND_BIT) {
-            clearIT = true;
-            raiseStatus(Status::DataTransmitted);
-        }
-        if (phPend & SI4455_CMD_GET_INT_STATUS_REP_PACKET_RX_PEND_BIT) {
-            clearIT = true;
-            // @todo Add circular buffer?
-            raiseStatus(Status::DataAvailable);
-        }
-
-        if (phPend & SI4455_CMD_GET_INT_STATUS_REP_CRC_ERROR_PEND_BIT) {
-            clearIT = true;
-            cmd_resetRxFifo(); // MAYBE: leave that choice to the user?
-            raiseStatus(Status::CrcError);
-        }
-
-        if (phPend & SI4455_CMD_GET_INT_STATUS_REP_TX_FIFO_ALMOST_EMPTY_PEND_BIT) {
-            clearIT = true;
-            raiseStatus(Status::FifoAlmostEmpty);
-        }
-        if (phPend & SI4455_CMD_GET_INT_STATUS_REP_RX_FIFO_ALMOST_FULL_PEND_BIT) {
-            clearIT = true;
-            raiseStatus(Status::FifoAlmostFull);
-        }
-
-        return clearIT;
-    }
-
-    //! Process Modem interrupts
-    //! @return true to clear interrupts, false otherwise
-    bool processModemInterruptPending(uint8_t modemPend)
-    {
-        bool clearIT {false};
-
-        if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_INVALID_SYNC_PEND_BIT) {
-            clearIT = true;
-            raiseStatus(Status::InvalidSync);
-        }
-        if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_INVALID_PREAMBLE_PEND_BIT) {
-            clearIT = true;
-            raiseStatus(Status::InvalidPreamble);
-        }
-
-        if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_PREAMBLE_DETECT_PEND_BIT) {
-            //clearIT = true;
-            raiseStatus(Status::DetectedPreamble);
-        }
-        if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_SYNC_DETECT_PEND_BIT) {
-            //clearIT = true;
-            raiseStatus(Status::DetectedSync);
-        }
-
-        if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_RSSI_PEND_BIT) {
-            //clearIT = true;
-        }
-
-        return clearIT;
-    }
-
-    //! Process Chip interrupts
-    //! @return true to clear interrupts, false otherwise
-    bool processChipInterruptPending(uint8_t chipPend)
-    {
-        bool clearIT {false};
-
-        if (chipPend & SI4455_CMD_GET_INT_STATUS_REP_FIFO_UNDERFLOW_OVERFLOW_ERROR_PEND_BIT) {
-            clearIT = true;
-            cmd_resetRxFifo(); // MAYBE: leave that choice to the user?
-            raiseStatus(Status::FifoUnderflowOrOverflowError);
-        }
-
-        if (chipPend & SI4455_CMD_GET_INT_STATUS_REP_CMD_ERROR_PEND_BIT) {
-            clearIT = true;
-            raiseStatus(Status::CommandError);
-        }
-
-        if (chipPend & SI4455_CMD_GET_INT_STATUS_REP_STATE_CHANGE_PEND_BIT) {
-            //clearIT = true;
-        }
-        if (chipPend & SI4455_CMD_GET_INT_STATUS_REP_CHIP_READY_PEND_BIT) {
-            //clearIT = true;
-        }
-
-        return clearIT;
-    }
-
-
-private:
+public:
     // #### EZ RADIO COMMANDS ####
 
     //! Reads data byte(s) from the current position in RX FIFO. Returns false on error.
@@ -1117,7 +861,7 @@ private:
         // Si4455Cmd.GET_ADC_READING.TEMP_INTERCEPT        = radioCmd[7];
     }
 
-public:
+
     //! Reports basic information about the device.
     Si4455_PartInfo const& cmd_readPartInformation()
     {
@@ -1165,7 +909,293 @@ public:
         // Si4455Cmd.FUNC_INFO.SVNREV.U8[b0]   = radioCmd[10];
     }
 
+
 private:
+        //! Power up the chip.
+    void powerUp()
+    {
+        debugln("Powering Up...");
+
+        // Hardware reset the chip
+        hardwareReset();
+
+        // Wait until reset timeout or Reset IT signal
+        //for (unsigned int wDelay = 0; wDelay < RadioConfiguration.Radio_Delay_Cnt_After_Reset; wDelay++);
+        delay(100);
+    }
+
+    //! Load all properties and commands with a list of NULL terminated commands.
+    //! Call @reset before.
+    bool initialize(uint8_t const* configArray)
+    {
+        debugln("Initializing...");
+
+        // While cycle as far as the pointer points to a command
+        while (*configArray != 0x00) {
+            // Commands structure in the array:
+            // --------------------------------
+            // LEN | <LEN length of data>
+
+            uint8_t cmdBytesCount = *configArray++;
+
+            if (cmdBytesCount > 16u) { // EZConfig
+                // Initial configuration of Si4x55
+                if (*configArray == SI4455_CMD_ID_WRITE_TX_FIFO) {
+                    if (cmdBytesCount > 128u) {
+                        // Number of command bytes exceeds maximal allowable length
+                        // @todo May need to send NOP to send more than 128 bytes (check documentation)
+                        debugln("Init failed: Command bytes exceeds 128 bytes");
+                        return false;
+                    }
+
+                    // Load array to the device
+                    configArray++;
+                    writeEZConfigArray(configArray, cmdBytesCount - 1);
+
+                    // Point to the next command
+                    configArray += cmdBytesCount - 1;
+
+                    // Continue command interpreter
+                    continue;
+                } else {
+                    // Number of command bytes exceeds maximal allowable length
+                    debugln("Init failed: Command bytes exceeds max");
+                    return false;
+                }
+            }
+
+            // Non-EZConfig command
+            uint8_t radioCmd[16];
+            for (uint8_t col = 0; col < cmdBytesCount; col++) {
+                radioCmd[col] = *configArray;
+                configArray++;
+            }
+
+            uint8_t response {0};
+            if (!sendCommandAndReadResponse(radioCmd, cmdBytesCount, &response, 1)) {
+                // Timeout occured
+                debugln("Init failed: Command timeout");
+                return false;
+            }
+
+            // Check response byte for EZCONFIG_CHECK command
+            if (radioCmd[0] == SI4455_CMD_ID_EZCONFIG_CHECK) {
+                if (response != SI4455_CMD_EZCONFIG_CHECK_REP_RESULT_ENUM_VALID) {
+                    // EZConfig failed, either SI4455_CMD_EZCONFIG_CHECK_REP_RESULT_ENUM_BAD_CHECKSUM or SI4455_CMD_EZCONFIG_CHECK_REP_RESULT_ENUM_INVALID_STATE
+                    debugln("Init failed: EZConfig Check error");
+                    return false;
+                }
+            }
+
+            if (hal.isIrqAsserted()) {
+                // Get and clear all interrupts. An error has occured...
+                Si4455_InterruptStatus const& it = cmd_readAndClearInterruptStatus();
+                if (it.CHIP_PEND & SI4455_CMD_GET_CHIP_STATUS_REP_CMD_ERROR_PEND_MASK) {
+                    // Command error
+                    debugln("Init failed: Command Error");
+                    return false;
+                }
+            }
+        }
+
+        debugln("Init succeeded.");
+        return true;
+    }
+
+    //! Writes data byte(s) to the EZConfig array (array generated from EZConfig tool).
+    bool writeEZConfigArray(uint8_t const* ezConfigArray, uint8_t count)
+    {
+        return writeData(SI4455_CMD_ID_WRITE_TX_FIFO, ezConfigArray, count);
+    }
+
+
+    //! Read a packet from RX FIFO, with size checks
+    ReadPacketResult readPacket(Si4455_FifoInfo const& fifoInfo, uint8_t* data, uint8_t byteCount)
+    {
+        bool const dataRemaining { (fifoInfo.RX_FIFO_COUNT > byteCount) };
+
+        if (byteCount > fifoInfo.RX_FIFO_COUNT) {
+            //cmd_resetRxFifo();
+            //cmd_clearAllPendingInterrupts();
+            debugln("Read Packet: Not Enough Data In Fifo");
+            return ReadPacketResult::NotEnoughDataInFifo;
+        }
+
+        debug("Read Packet: ");
+        debug(byteCount); debug('/'); debugln(fifoInfo.RX_FIFO_COUNT);
+
+        clearStatus(Status::DataAvailable);
+
+        // Read FIFO
+        cmd_readRxFifo(data, byteCount);
+
+        if (dataRemaining)
+            raiseStatus(Status::DataAvailable);
+
+        updateStatus();
+
+        return statusNoError() ? ReadPacketResult::Success : ReadPacketResult::RequestFailed;
+    }
+
+
+    //! Ask to start listening on given channel with given packet length
+    bool startListening(uint8_t channel, uint8_t packetLength)
+    {
+        debug("Listening on channel ");
+        debugln(channel);
+
+        cmd_clearAllPendingInterrupts();
+
+        // Start Receiving packet on channel, START immediately, Packet n bytes long
+        cmd_startRx(channel, 0, packetLength,
+                    SI4455_CMD_START_RX_ARG_RXTIMEOUT_STATE_ENUM_RX,
+                    SI4455_CMD_START_RX_ARG_RXVALID_STATE_ENUM_RX,
+                    SI4455_CMD_START_RX_ARG_RXINVALID_STATE_ENUM_RX);
+
+        return lastCommandSucceeded();
+    }
+
+
+    void readAndProcessPendingInterrupts()
+    {
+        Si4455_InterruptStatus const& is {cmd_readInterruptStatus(0,0,0)}; // Read and clear all pending interrupts
+
+        processPacketHandlerInterruptPending(is.PH_PEND);
+        processModemInterruptPending(is.MODEM_PEND);
+        processChipInterruptPending(is.CHIP_PEND);
+    }
+
+    //! Read pending interrupts via FRR
+    void updateStatus()
+    {
+        // FRR B: PH_PEND
+        // FRR C: MODEM_PEND
+        // FRR D: CHIP_PEND
+        Si4455_FrrB const& frrb = cmd_readFrrB(3);
+
+        /*if (lastCommandFailed())
+            return;//*/
+
+        //clearStatus();
+
+        bool clearIT {false};
+        clearIT |= processPacketHandlerInterruptPending(frrb.FRR_B_VALUE);
+        clearIT |= processModemInterruptPending(frrb.FRR_C_VALUE);
+        clearIT |= processChipInterruptPending(frrb.FRR_D_VALUE);
+
+        if (clearIT)
+            cmd_clearAllPendingInterrupts();
+
+        // TODO: check how to implement properly this auto-recovery and if it is really needed
+        //if (m_deviceStatus & (CommandError|CrcError)) // auto recovery
+          //  startListening();
+    }
+
+    //! Process Packet Handler interrupts
+    //! @return true to clear interrupts, false otherwise
+    bool processPacketHandlerInterruptPending(uint8_t phPend)
+    {
+        bool clearIT {false};
+
+        if (phPend & SI4455_CMD_GET_INT_STATUS_REP_PACKET_SENT_PEND_BIT) {
+            clearIT = true;
+            raiseStatus(Status::DataTransmitted);
+            debugln("Packet IT: Data Transmitted");
+        }
+        if (phPend & SI4455_CMD_GET_INT_STATUS_REP_PACKET_RX_PEND_BIT) {
+            clearIT = true;
+            // @todo Add circular buffer?
+            raiseStatus(Status::DataAvailable);
+            debugln("Packet IT: Data Available");
+        }
+
+        if (phPend & SI4455_CMD_GET_INT_STATUS_REP_CRC_ERROR_PEND_BIT) {
+            clearIT = true;
+            cmd_resetRxFifo(); // MAYBE: leave that choice to the user?
+            raiseStatus(Status::CrcError);
+            debugln("Packet IT: CRC Error");
+        }
+
+        if (phPend & SI4455_CMD_GET_INT_STATUS_REP_TX_FIFO_ALMOST_EMPTY_PEND_BIT) {
+            clearIT = true;
+            raiseStatus(Status::FifoAlmostEmpty);
+            debugln("Packet IT: TX FIFO Almost Empty");
+        }
+        if (phPend & SI4455_CMD_GET_INT_STATUS_REP_RX_FIFO_ALMOST_FULL_PEND_BIT) {
+            clearIT = true;
+            raiseStatus(Status::FifoAlmostFull);
+            debugln("Packet IT: RX FIFO Almost Full");
+        }
+
+        return clearIT;
+    }
+
+    //! Process Modem interrupts
+    //! @return true to clear interrupts, false otherwise
+    bool processModemInterruptPending(uint8_t modemPend)
+    {
+        bool clearIT {false};
+
+        if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_INVALID_SYNC_PEND_BIT) {
+            clearIT = true;
+            raiseStatus(Status::InvalidSync);
+            debugln("Modem IT: Invalid Sync");
+        }
+        if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_INVALID_PREAMBLE_PEND_BIT) {
+            clearIT = true;
+            raiseStatus(Status::InvalidPreamble);
+            debugln("Modem IT: Invalid Preamble");
+        }
+
+        if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_PREAMBLE_DETECT_PEND_BIT) {
+            //clearIT = true;
+            raiseStatus(Status::DetectedPreamble);
+            debugln("Modem IT: Detected Preamble");
+        }
+        if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_SYNC_DETECT_PEND_BIT) {
+            //clearIT = true;
+            raiseStatus(Status::DetectedSync);
+            debugln("Modem IT: Detected Sync");
+        }
+
+        if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_RSSI_PEND_BIT) {
+            //clearIT = true;
+            debugln("Modem IT: RSSI Latched");
+        }
+
+        return clearIT;
+    }
+
+    //! Process Chip interrupts
+    //! @return true to clear interrupts, false otherwise
+    bool processChipInterruptPending(uint8_t chipPend)
+    {
+        bool clearIT {false};
+
+        if (chipPend & SI4455_CMD_GET_INT_STATUS_REP_FIFO_UNDERFLOW_OVERFLOW_ERROR_PEND_BIT) {
+            clearIT = true;
+            cmd_resetRxFifo(); // MAYBE: leave that choice to the user?
+            raiseStatus(Status::FifoUnderflowOrOverflowError);
+            debugln("Chip IT: FIFO Underflow/Overflow");
+        }
+
+        if (chipPend & SI4455_CMD_GET_INT_STATUS_REP_CMD_ERROR_PEND_BIT) {
+            clearIT = true;
+            raiseStatus(Status::CommandError);
+            debugln("Chip IT: Command Error");
+        }
+
+        if (chipPend & SI4455_CMD_GET_INT_STATUS_REP_STATE_CHANGE_PEND_BIT) {
+            //clearIT = true;
+            debugln("Chip IT: State Change");
+        }
+        if (chipPend & SI4455_CMD_GET_INT_STATUS_REP_CHIP_READY_PEND_BIT) {
+            //clearIT = true;
+            debugln("Chip IT: Chip Ready");
+        }
+
+        return clearIT;
+    }
 
 
     // #### INTERNAL COMM HANDLING ####
@@ -1191,7 +1221,7 @@ private:
         if (!waitForClearToSend())
             return false;
 
-        hal.resumeOrBeginSpiTransaction();
+        hal.restartOrBeginSpiTransaction();
         hal.spiWriteData(data, count);
         hal.endSpiTransaction();
         return true;
@@ -1205,7 +1235,7 @@ private:
      * @param responseData      Pointer to where to put the response data.
      * @param responseByteCount Number of bytes in the response to fetch.
      *
-     * @return true if send and read succeded, false otherwise.
+     * @return true if send and read succeeded, false otherwise.
      */
     bool sendCommandAndReadResponse(uint8_t const* commandData, uint8_t commandByteCount, uint8_t* responseData, uint8_t responseByteCount)
     {
@@ -1230,11 +1260,11 @@ private:
      * @param data        Pointer to where to put the data.
      * @param count       Number of bytes to get from the radio chip.
      *
-     * @return true if read succeded, false otherwise.
+     * @return true if read succeeded, false otherwise.
      */
     bool readDataWithoutClearToSend(uint8_t command, uint8_t* data, uint8_t count)
     {
-        hal.beginSpiTransaction();
+        hal.resumeOrBeginSpiTransaction();
         hal.spiWriteByte(command);
         hal.spiReadData(data, count);
         hal.endSpiTransaction();
@@ -1257,11 +1287,11 @@ private:
      * @param data        Pointer to the data to write. Must be valid.
      * @param count       Number of bytes to write to the radio chip.
      *
-     * @return true if write succeded, false otherwise.
+     * @return true if write succeeded, false otherwise.
      */
     bool writeDataWithoutClearToSend(uint8_t command, uint8_t const* data, uint8_t count)
     {
-        hal.resumeOrBeginSpiTransaction();
+        hal.restartOrBeginSpiTransaction();
         hal.spiWriteByte(command);
         hal.spiWriteData(data, count);
         hal.endSpiTransaction();
@@ -1307,7 +1337,7 @@ private:
         deviceReady();
         return true;
     }
-/*
+
     //! Waits for CTS to be high. Returns false if timeout occured.
     //! Uses Hardware CTS I/O.
     //template <typename T = typename std::enable_if<Hal::HasHardwareClearToSend>::type>
@@ -1330,7 +1360,7 @@ private:
         deviceReady();
         return true;
     }
-//*/
+
 
 private:
     void raiseStatus(Status v) {

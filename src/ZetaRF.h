@@ -12,9 +12,8 @@
 #include "zetarf_hal.h"
 #include "zetarf_radio.h"
 
+// Include other configs here
 #include "configs/config868_fixedsize_crc_preamble10_sync4_payload8.h"
-
-//#define ZETARF_DEBUG_VERBOSE_ON
 
 
 class ZetaRF
@@ -24,7 +23,6 @@ public:
     using Status = ZetaRFRadio::Status;
     using ReadPacketResult = ZetaRFRadio::ReadPacketResult;
 
-    //bool beginWithConfigurationArray(ZetaRFConfigs::RadioConnfiguration const& config);
 
     //! Current internal radio state
     ZetaRF::RadioState radioState();
@@ -83,6 +81,7 @@ protected:
         }
     }
 
+    //!! Load radio config
     bool begin(uint8_t const* configArray);
 
 private:
