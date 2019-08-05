@@ -1,6 +1,5 @@
-/*! @file ZetaRF.h
- *
- * @brief This file contains the public functions controlling the Si4455 radio chip.
+/*!
+ * @brief Interface controlling the Si4455 radio chip.
  *
  * License: see LICENSE file
  */
@@ -11,7 +10,7 @@
 
 #include "flagset.hpp"
 
-#define ZETARF_DEBUG_ON
+//#define ZETARF_DEBUG_ON
 
 #if defined(ZETARF_DEBUG_ON)
     #define debug(...)   Serial.print(__VA_ARGS__)
@@ -118,7 +117,7 @@ public:
     using ReadPacketResult = ZetaRFRadio::ReadPacketResult;
 
     //! Current device status   
-    Status status() const {
+    bitflag<Status> status() const {
         return m_deviceStatus;
     }
 
@@ -168,6 +167,15 @@ public:
         return statusNoError();
     }
 
+
+    bool update()
+    {
+        if (hal.isIrqAsserted()) {
+            updateStatus();
+            return true;
+        }
+        return false;
+    }
 
 
     /*!
@@ -343,8 +351,7 @@ public:
     //! Check device status and clear the flag
     bool testAndClearStatus(Status status)
     {
-        if (hal.isIrqAsserted())
-            updateStatus();
+        update();
 
         if (testStatus(status)) {
             clearStatus(status);
@@ -1083,8 +1090,12 @@ private:
         clearIT |= processModemInterruptPending(frrb.FRR_C_VALUE);
         clearIT |= processChipInterruptPending(frrb.FRR_D_VALUE);
 
+#ifdef ZETARF_DEBUG_ON
+        cmd_clearAllPendingInterrupts();
+#else
         if (clearIT)
             cmd_clearAllPendingInterrupts();
+#endif
 
         // TODO: check how to implement properly this auto-recovery and if it is really needed
         //if (m_deviceStatus & (CommandError|CrcError)) // auto recovery
@@ -1187,7 +1198,7 @@ private:
 
         if (chipPend & SI4455_CMD_GET_INT_STATUS_REP_STATE_CHANGE_PEND_BIT) {
             //clearIT = true;
-            debugln("Chip IT: State Change");
+            //debugln("Chip IT: State Change");
         }
         if (chipPend & SI4455_CMD_GET_INT_STATUS_REP_CHIP_READY_PEND_BIT) {
             //clearIT = true;

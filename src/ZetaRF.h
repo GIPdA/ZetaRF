@@ -1,6 +1,6 @@
 /*! @file ZetaRF.h
  *
- * @brief This file contains the public functions controlling the Si4455 radio chip.
+ * @brief ZetaRF library main file
  *
  * License: see LICENSE file
  */
@@ -14,23 +14,41 @@
 
 // Include other configs here
 #include "configs/config868_fixedsize_crc_preamble10_sync4_payload8.h"
+#include "configs/config433_fixedsize_crc_preamble10_sync4_payload8.h"
 
 
-class ZetaRF
+namespace ZetaRF
 {
-public:
     using RadioState = ZetaRFRadio::RadioState;
     using Status = ZetaRFRadio::Status;
     using ReadPacketResult = ZetaRFRadio::ReadPacketResult;
+}
 
 
+template <typename Config, class ...HalTypes>
+class ZetaRFImpl// : public ZetaRF
+{
+public:
     //! Current internal radio state
     ZetaRF::RadioState radioState();
 
+    bitflag<ZetaRF::Status> status() const {
+        return m_radio.status();
+    }
+
+
+    //!! Load radio config
+    bool begin() {
+        return m_radio.beginWithConfigurationDataArray(Config::RadioConfigurationDataArray);
+    }
+
+    bool update() {
+        return m_radio.update();
+    }
 
     //bool isNotResponding() const;
 
-    ReadPacketResult readFixedLengthPacket(uint8_t* data, uint8_t byteCount) {
+    ZetaRF::ReadPacketResult readFixedLengthPacket(uint8_t* data, uint8_t byteCount) {
         return m_radio.readFixedLengthPacket(data, byteCount);
     }
 
@@ -52,55 +70,44 @@ public:
 
 
 protected:
-    RadioState radioStateFromValue(uint8_t state) const {
+    ZetaRF::RadioState radioStateFromValue(uint8_t state) const {
         switch (state) {
-            case 1: return RadioState::Sleep;
-            case 2: return RadioState::SpiActive;
-            case 3: return RadioState::Ready;
-            case 4: return RadioState::Ready2;
-            case 5: return RadioState::TxTune;
-            case 6: return RadioState::RxTune;
-            case 7: return RadioState::Tx;
-            case 8: return RadioState::Rx;
+            case 1: return ZetaRF::RadioState::Sleep;
+            case 2: return ZetaRF::RadioState::SpiActive;
+            case 3: return ZetaRF::RadioState::Ready;
+            case 4: return ZetaRF::RadioState::Ready2;
+            case 5: return ZetaRF::RadioState::TxTune;
+            case 6: return ZetaRF::RadioState::RxTune;
+            case 7: return ZetaRF::RadioState::Tx;
+            case 8: return ZetaRF::RadioState::Rx;
 
-            default: return RadioState::Invalid;
+            default: return ZetaRF::RadioState::Invalid;
         }
     }
-    const char* radioStateText(RadioState state) const {
+    const char* radioStateText(ZetaRF::RadioState state) const {
         switch (state) {
-            case RadioState::Sleep: return "Sleep";
-            case RadioState::SpiActive: return "SpiActive";
-            case RadioState::Ready: return "Ready";
-            case RadioState::Ready2: return "Ready2";
-            case RadioState::TxTune: return "TxTune";
-            case RadioState::RxTune: return "RxTune";
-            case RadioState::Tx: return "Tx";
-            case RadioState::Rx: return "Rx";
+            case ZetaRF::RadioState::Sleep: return "Sleep";
+            case ZetaRF::RadioState::SpiActive: return "SpiActive";
+            case ZetaRF::RadioState::Ready: return "Ready";
+            case ZetaRF::RadioState::Ready2: return "Ready2";
+            case ZetaRF::RadioState::TxTune: return "TxTune";
+            case ZetaRF::RadioState::RxTune: return "RxTune";
+            case ZetaRF::RadioState::Tx: return "Tx";
+            case ZetaRF::RadioState::Rx: return "Rx";
 
             default: return "Invalid";
         }
     }
 
-    //!! Load radio config
-    bool begin(uint8_t const* configArray);
-
 private:
-    ZetaRFRadioImpl< ZetaRfHal< ChipSelectPin<10>, ShutdownPin<9>, IrqPin<8> > > m_radio;
+    ZetaRFRadioImpl< ZetaRfHal<HalTypes...> > m_radio;
 };
 
 
-template<typename Config>
-class ZetaRF_C : public ZetaRF
-{
-public:
-    bool begin() {
-        return ZetaRF::begin(Config::RadioConfigurationDataArray);
-    }
-};
+// Default configs
+template<class ...Ts>
+using ZetaRF868 = ZetaRFImpl<ZetaRFConfigs::Config868_FixedSize_CRC_Preamble10_Sync4_Payload8, Ts...>;
 
-
-//CREATE_FLAGSET(ZetaRF::Status)
-
-
-using ZetaRF868 = ZetaRF_C<ZetaRFConfigs::Config868_FixedSize_CRC_Preamble10_Sync4_Payload8>;
+template<class ...Ts>
+using ZetaRF433 = ZetaRFImpl<ZetaRFConfigs::Config433_FixedSize_CRC_Preamble10_Sync4_Payload8, Ts...>;
 

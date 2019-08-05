@@ -1,5 +1,7 @@
 /*!
  * @brief Radio configuration data adapted from SiLabs's WDS software.
+ *
+ * Configuration for 433 MHz Zeta module.
  */
 
 #pragma once

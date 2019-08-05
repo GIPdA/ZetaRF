@@ -1,5 +1,6 @@
 /*!
- * @brief ZetaRF HAL file
+ * @brief ZetaRF HAL (Hardware Abstraction Layer) interface.
+ * Uses default Arduino SPI & GPIO controls
  *
  * License: see LICENSE file
  */
@@ -42,6 +43,16 @@ template<int PinNumber>
 struct IrqPin : public IrqPinSelector, public PinSelector<PinNumber>
 {
 };
+
+namespace ZetaRF
+{
+    template<int PinNumber>
+    using CS = ChipSelectPin<PinNumber>;
+    template<int PinNumber>
+    using SDN = ShutdownPin<PinNumber>;
+    template<int PinNumber>
+    using IRQ = IrqPin<PinNumber>;
+}
 
 
 template <class TChipSelectPin, class TShutdownPin, class TIrqPin>
