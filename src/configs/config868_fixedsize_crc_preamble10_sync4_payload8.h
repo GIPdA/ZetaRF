@@ -1,5 +1,5 @@
 /*!
- * @brief Radio configuration data adapted from SiLabs's WDS software.                               
+ * @brief Radio configuration data adapted from SiLabs's WDS software.
  */
 
 #pragma once
@@ -8,13 +8,13 @@
 
 // INPUT DATA
 /*
-// Crys_freq(Hz): 30000000    Crys_tol(ppm): 30    IF_mode: 2    High_perf_Ch_Fil: 1    OSRtune: 0    Ch_Fil_Bw_AFC: 0    ANT_DIV: 0    PM_pattern: 0    
-// MOD_type: 2    Rsymb(sps): 128000    Fdev(Hz): 70000    RXBW(Hz): 305000    Manchester: 1    AFC_en: 1    Rsymb_error: 0.0    Chip-Version: 2    
-// RF Freq.(MHz): 868    API_TC: 28    fhst: 250000    inputBW: 0    BERT: 0    RAW_dout: 0    D_source: 0    Hi_pfm_div: 0    
-// 
-// # WB filter 2 (BW = 274.83 kHz);  NB-filter 2 (BW = 274.83 kHz) 
+// Crys_freq(Hz): 30000000    Crys_tol(ppm): 30    IF_mode: 2    High_perf_Ch_Fil: 1    OSRtune: 0    Ch_Fil_Bw_AFC: 0    ANT_DIV: 0    PM_pattern: 0
+// MOD_type: 2    Rsymb(sps): 128000    Fdev(Hz): 70000    RXBW(Hz): 305000    Manchester: 1    AFC_en: 1    Rsymb_error: 0.0    Chip-Version: 2
+// RF Freq.(MHz): 868    API_TC: 28    fhst: 250000    inputBW: 0    BERT: 0    RAW_dout: 0    D_source: 0    Hi_pfm_div: 0
+//
+// # WB filter 2 (BW = 274.83 kHz);  NB-filter 2 (BW = 274.83 kHz)
 
-// 
+//
 // Modulation index: 1
 */
 
@@ -41,7 +41,7 @@
 // Number of properties:     2
 // Group ID:                 0x01
 // Start ID:                 0x00
-// Default values:           0x04, 0x00, 
+// Default values:           0x04, 0x00,
 // Descriptions:
 //   INT_CTL_ENABLE - This property provides for global enabling of the three interrupt groups (Chip, Modem and Packet Handler) in order to generate HW interrupts at the NIRQ pin.
 //   INT_CTL_PH_ENABLE - Enable individual interrupt sources within the Packet Handler Interrupt Group to generate a HW interrupt on the NIRQ output pin.
@@ -53,7 +53,7 @@
 // Number of properties:     1
 // Group ID:                 0x01
 // Start ID:                 0x03
-// Default values:           0x04, 
+// Default values:           0x04,
 // Descriptions:
 //   INT_CTL_CHIP_ENABLE - Enable individual interrupt sources within the Chip Interrupt Group to generate a HW interrupt on the NIRQ output pin.
 */
@@ -64,7 +64,7 @@
 // Number of properties:     4
 // Group ID:                 0x02
 // Start ID:                 0x00
-// Default values:           0x01, 0x02, 0x09, 0x00, 
+// Default values:           0x01, 0x02, 0x09, 0x00,
 // Descriptions:
 //   FRR_CTL_A_MODE - Fast Response Register A Configuration.
 //   FRR_CTL_B_MODE - Fast Response Register B Configuration.
@@ -78,7 +78,7 @@
 // Number of properties:     1
 // Group ID:                 0x24
 // Start ID:                 0x03
-// Default values:           0x40, 
+// Default values:           0x40,
 // Descriptions:
 //   EZCONFIG_XO_TUNE - Configure the internal capacitor frequency tuning bank for the crystal oscillator.
 */

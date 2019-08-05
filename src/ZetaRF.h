@@ -22,6 +22,7 @@ class ZetaRF
 public:
     using RadioState = ZetaRFRadio::RadioState;
     using Status = ZetaRFRadio::Status;
+    using ReadPacketResult = ZetaRFRadio::ReadPacketResult;
 
     //bool beginWithConfigurationArray(ZetaRFConfigs::RadioConnfiguration const& config);
 
@@ -31,6 +32,25 @@ public:
 
     //bool isNotResponding() const;
 
+    ReadPacketResult readFixedLengthPacket(uint8_t* data, uint8_t byteCount) {
+        return m_radio.readFixedLengthPacket(data, byteCount);
+    }
+
+    bool startListeningOnChannel(uint8_t newChannel) {
+        return m_radio.startListeningOnChannel(newChannel);
+    }
+
+    bool checkReceived() {
+        return m_radio.checkReceived();
+    }
+
+    Si4455_PartInfo const& readPartInformation() {
+        return m_radio.cmd_readPartInformation();
+    }
+
+    Si4455_FuncInfo const& readFunctionRevisionInformation() {
+        return m_radio.cmd_readFunctionRevisionInformation();
+    }
 
 
 protected:

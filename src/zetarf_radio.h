@@ -137,7 +137,7 @@ public:
             delay(20);
             powerUp();
         }
-        
+
         if (retryCount <= 0)
             return false;
 
@@ -179,7 +179,6 @@ public:
 
         if (statusHasError())
             return false;
-        
 
         // Wait for the device to be ready to send a packet
         unsigned long const t { millis() };
@@ -218,6 +217,9 @@ public:
 
         //Serial.println();
 
+        if (lastCommandFailed())
+            return ReadPacketResult::RequestFailed;
+
         return readPacket(fi, data, byteCount);
     }
 
@@ -249,7 +251,7 @@ public:
         return readPacket(fi, data+1, size);
     }
 
-    
+
     //! Current internal radio state
     RadioState radioState() {
         return static_cast<RadioState>(cmd_readFrrA().FRR_A_VALUE & 0x0F);
@@ -398,6 +400,7 @@ private:
                     if (cmdBytesCount > 128u) {
                         // Number of command bytes exceeds maximal allowable length
                         // @todo May need to send NOP to send more than 128 bytes (check documentation)
+                        Serial.println("More than 128 bytes");
                         return false;
                     }
 
@@ -412,6 +415,7 @@ private:
                     continue;
                 } else {
                     // Number of command bytes exceeds maximal allowable length
+                    Serial.println("Too much bytes");
                     return false;
                 }
             }
@@ -426,15 +430,17 @@ private:
             uint8_t response {0};
             if (!sendCommandAndReadResponse(radioCmd, cmdBytesCount, &response, 1)) {
                 // Timeout occured
+                Serial.println("Cmd Timeout");
                 return false;
             }
 
             // Check response byte for EZCONFIG_CHECK command
             if (radioCmd[0] == SI4455_CMD_ID_EZCONFIG_CHECK) {
-                if (response != SI4455_CMD_EZCONFIG_CHECK_REP_RESULT_ENUM_VALID) {
+                if (response) {// != SI4455_CMD_EZCONFIG_CHECK_REP_RESULT_ENUM_VALID) {
                     // EZConfig failed, either SI4455_CMD_EZCONFIG_CHECK_REP_RESULT_ENUM_BAD_CHECKSUM or SI4455_CMD_EZCONFIG_CHECK_REP_RESULT_ENUM_INVALID_STATE
+                    Serial.println("EZConfig Check error");
                     return false;
-                }    
+                }
             }
 
             if (hal.isIrqAsserted()) {
@@ -442,6 +448,7 @@ private:
                 Si4455_InterruptStatus const& it = cmd_readAndClearInterruptStatus();
                 if (it.CHIP_PEND & SI4455_CMD_GET_CHIP_STATUS_REP_CMD_ERROR_PEND_MASK) {
                     // Command error
+                    Serial.println("Cmd Error");
                     return false;
                 }
             }
@@ -461,6 +468,8 @@ private:
     ReadPacketResult readPacket(Si4455_FifoInfo const& fifoInfo, uint8_t* data, uint8_t byteCount)
     {
         bool const dataRemaining { (fifoInfo.RX_FIFO_COUNT > byteCount) };
+
+        Serial.println(fifoInfo.RX_FIFO_COUNT);
 
         if (byteCount > fifoInfo.RX_FIFO_COUNT) {
             //cmd_resetRxFifo();
@@ -624,8 +633,7 @@ private:
         return clearIT;
     }
 
-    
-    
+
 private:
     // #### EZ RADIO COMMANDS ####
 
@@ -937,7 +945,7 @@ private:
         // Si4455Cmd.READ_CMD_BUFF.CMD_BUFF15  = radioCmd[15];
     }
 
-    
+
     //! Retrieves the value of one or more properties.
     Si4455_Properties const& cmd_readProperties(uint8_t group, uint8_t count, uint8_t startProperty)
     {
@@ -1109,6 +1117,7 @@ private:
         // Si4455Cmd.GET_ADC_READING.TEMP_INTERCEPT        = radioCmd[7];
     }
 
+public:
     //! Reports basic information about the device.
     Si4455_PartInfo const& cmd_readPartInformation()
     {
@@ -1156,6 +1165,7 @@ private:
         // Si4455Cmd.FUNC_INFO.SVNREV.U8[b0]   = radioCmd[10];
     }
 
+private:
 
 
     // #### INTERNAL COMM HANDLING ####
@@ -1178,7 +1188,7 @@ private:
      */
     bool sendCommand(uint8_t const* data, uint8_t count)
     {
-        if (!waitForClearToSend()) 
+        if (!waitForClearToSend())
             return false;
 
         hal.resumeOrBeginSpiTransaction();
@@ -1203,7 +1213,7 @@ private:
             return false;
 
         // Wait until radio IC is ready with the data
-        if (!waitForClearToSend()) 
+        if (!waitForClearToSend())
             return false;
 
         hal.resumeOrBeginSpiTransaction();
@@ -1249,7 +1259,7 @@ private:
      *
      * @return true if write succeded, false otherwise.
      */
-    bool writeDataWithoutClearToSend(uint8_t command, const uint8_t* data, uint8_t count)
+    bool writeDataWithoutClearToSend(uint8_t command, uint8_t const* data, uint8_t count)
     {
         hal.resumeOrBeginSpiTransaction();
         hal.spiWriteByte(command);
@@ -1259,7 +1269,7 @@ private:
     }
 
     //! Waits for CTS and sends a command to the radio chip.
-    bool writeData(uint8_t command, const uint8_t* data, uint8_t count)
+    bool writeData(uint8_t command, uint8_t const* data, uint8_t count)
     {
         if (!waitForClearToSend())
             return false;
@@ -1297,7 +1307,7 @@ private:
         deviceReady();
         return true;
     }
-
+/*
     //! Waits for CTS to be high. Returns false if timeout occured.
     //! Uses Hardware CTS I/O.
     //template <typename T = typename std::enable_if<Hal::HasHardwareClearToSend>::type>
@@ -1320,8 +1330,8 @@ private:
         deviceReady();
         return true;
     }
+//*/
 
-    
 private:
     void raiseStatus(Status v) {
         m_deviceStatus |= v;

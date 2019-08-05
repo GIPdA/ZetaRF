@@ -48,7 +48,7 @@ template <class TChipSelectPin, class TShutdownPin, class TIrqPin>
 class ZetaRfHal
 {
     static constexpr int ChipSelect_pin = TChipSelectPin::Pin;
-    static constexpr int ShutdownPin = TChipSelectPin::Pin;
+    static constexpr int ShutdownPin = TShutdownPin::Pin;
     static constexpr int IrqPin = TIrqPin::Pin;
 
     bool m_inSpiTransaction {false};
@@ -67,6 +67,10 @@ public:
         pinMode(ChipSelect_pin, OUTPUT);
         pinMode(IrqPin, INPUT_PULLUP);
         pinMode(ShutdownPin, OUTPUT);
+
+
+        digitalWrite(ChipSelect_pin, HIGH);
+        putInShutdown();
         return true;
     }
 
@@ -80,7 +84,7 @@ public:
         return (digitalRead(IrqPin) == LOW);
     }
 
-    void putInShutdown() 
+    void putInShutdown()
     {
         // Put in shutdown
         digitalWrite(ShutdownPin, HIGH);
@@ -140,7 +144,7 @@ public:
         SPI.transfer(data, count);
     }
 
-    void spiWriteData(const uint8_t* data, uint8_t count)
+    void spiWriteData(uint8_t const* data, uint8_t count)
     {
         while (count--)
             SPI.transfer(*data++);
