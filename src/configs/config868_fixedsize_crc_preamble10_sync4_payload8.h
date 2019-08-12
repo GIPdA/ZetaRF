@@ -28,6 +28,7 @@ struct Config868_FixedSize_CRC_Preamble10_Sync4_Payload8
 
     constexpr static uint8_t DefaultChannel = 0;
     constexpr static uint8_t PacketLength = 0x08;
+    constexpr static bool VariableLengthPacketConfiguration = false;
 };
 
 } // namespace ZetaRFConfigs

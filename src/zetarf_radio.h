@@ -10,6 +10,8 @@
 
 #include "flagset.hpp"
 
+#include <cstdint>
+
 //#define ZETARF_DEBUG_ON
 
 #if defined(ZETARF_DEBUG_ON)
@@ -180,33 +182,64 @@ public:
 
     /*!
      * Send data to @a channel.
+     * Notes when using variable length packets:
+     *  - First data byte must be the payload length field.
+     *  - Payload includes the extra length field, so @a length must too.
+     * @sa sendVariableLengthPacket
      *
      * @param channel Channel to send data to.
-     * @param data Pointer to data to send. When using variable length packets, first byte should be the payload length.
+     * @param data Pointer to data to send, first byte should be the payload length.
      * @param length Data length (bytes). Includes payload length byte when using variable length packets.
-     * @param timeout_ms Max delay in ms to wait for the device to be ready to send a packet
+     * @param timeout_ms Max delay in ms to wait for the device to be ready to send a packet.
      */
     bool sendPacket(uint8_t channel, uint8_t const* data, uint8_t length, unsigned long timeout_ms = 100)
     {
+        // TODO: handle retransmit feature
         if (!data || length == 0)
             return false;
 
-        cmd_clearAllPendingInterrupts();
+        cmd_clearAllPendingInterrupts(); // MAYBE: needed?
 
         if (statusHasError())
             return false;
 
-        // Wait for the device to be ready to send a packet
-        unsigned long const t { millis() };
-        RadioState s {RadioState::Invalid};
-        do {
-            s = radioState();
+        if (!waitReadyToSendPacket(timeout_ms))
+            return false;
 
-            if ((millis()-t) > timeout_ms)
-                return false;
+        // Fill the TX fifo with data
+        cmd_writeTxFifo(data, length);
 
-        } while ((s == RadioState::Tx) || (s == RadioState::TxTune)); // Goes out of Tx/TxTune when packet is sent
+        // Start sending packet on channel, return to RX after transmit
+        cmd_startTx(channel, 0x80, length);
 
+        return statusNoError();
+    }
+
+    /*!
+     * Convenience method to send variable length packets without the need to handle the extra payload field.
+     * Do not include any extra payload byte or account for it in @a length, it is handled internally.
+     *
+     * @param channel Channel to send data to.
+     * @param data Pointer to data to send, first byte should not be the payload length.
+     * @param length Data length (bytes). Do not include the payload length byte.
+     * @param timeout_ms Max delay in ms to wait for the device to be ready to send a packet.
+     */
+    bool sendVariableLengthPacket(uint8_t channel, uint8_t const* data, uint8_t length, unsigned long timeout_ms = 100)
+    {
+        if (!data || length == 0)
+            return false;
+
+        cmd_clearAllPendingInterrupts(); // MAYBE: needed?
+
+        if (statusHasError())
+            return false;
+
+        if (!waitReadyToSendPacket(timeout_ms))
+            return false;
+
+        // Write the varible length field
+        uint8_t const vlengthField = length+1;
+        cmd_writeTxFifo(&vlengthField, 1);
 
         // Fill the TX fifo with data
         cmd_writeTxFifo(data, length);
@@ -254,8 +287,8 @@ public:
 
         // Read size
         cmd_readRxFifo(data, 1);
-        uint8_t size = *data;   // Variable length: first byte = frame size
-        packetDataLength = size;
+        uint8_t size = *data;   // Variable length: first byte = frame size +1 (includes length field)
+        packetDataLength = size-1;
 
         //Serial.print(" - ");
         //Serial.println(size);
@@ -264,7 +297,7 @@ public:
             return ReadPacketResult::PacketSizeLargerThanBuffer;
 
 
-        return readPacket(fi, data+1, size);
+        return readPacket(fi, data+1, size-1);
     }
 
 
@@ -275,6 +308,9 @@ public:
 
     uint8_t packetLength() const {
         return m_packetLength;
+    }
+    void setPacketLength(uint8_t newLength) {
+        m_packetLength = newLength;
     }
 
     uint8_t listeningChannel() const {
@@ -1016,6 +1052,22 @@ private:
     }
 
 
+    bool waitReadyToSendPacket(unsigned long timeout_ms = 100)
+    {
+        // Wait for the device to be ready to send a packet
+        unsigned long const t { millis() };
+        RadioState s {RadioState::Invalid};
+        do {
+            s = radioState();
+
+            if ((millis()-t) > timeout_ms)
+                return false;
+
+        } while ((s == RadioState::Tx) || (s == RadioState::TxTune)); // Goes out of Tx/TxTune when packet is sent
+
+        return statusNoError();
+    }
+
     //! Read a packet from RX FIFO, with size checks
     ReadPacketResult readPacket(Si4455_FifoInfo const& fifoInfo, uint8_t* data, uint8_t byteCount)
     {
@@ -1045,7 +1097,8 @@ private:
     }
 
 
-    //! Ask to start listening on given channel with given packet length
+    //! Ask to start listening on given channel with given packet length.
+    //! For variable length packet configuration, set packetLegth to zero.
     bool startListening(uint8_t channel, uint8_t packetLength)
     {
         debug("Listening on channel ");

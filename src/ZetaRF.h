@@ -16,6 +16,7 @@
 #include "configs/config868_fixedsize_crc_preamble10_sync4_payload8.h"
 #include "configs/config433_fixedsize_crc_preamble10_sync4_payload8.h"
 
+#include <cstdint>
 
 namespace ZetaRF
 {
@@ -39,6 +40,11 @@ public:
 
     //!! Load radio config
     bool begin() {
+        if (Config::VariableLengthPacketConfiguration)
+            m_radio.setPacketLength(0); // Variable length packets listen with packet size of zero
+        else
+            m_radio.setPacketLength(Config::PacketLength);
+
         return m_radio.beginWithConfigurationDataArray(Config::RadioConfigurationDataArray);
     }
 
@@ -48,8 +54,25 @@ public:
 
     //bool isNotResponding() const;
 
+    // ### PACKET SENDING METHODS ###
+    bool sendPacket(uint8_t channel, uint8_t const* data, uint8_t length, unsigned long timeout_ms = 100) {
+        return m_radio.sendPacket(channel, data, length, timeout_ms);
+    }
+
+    bool sendVariableLengthPacket(uint8_t channel, uint8_t const* data, uint8_t length, unsigned long timeout_ms = 100) {
+        static_assert(Config::VariableLengthPacketConfiguration, "Radio configuration does not support variable length packets.");
+        return m_radio.sendVariableLengthPacket(channel, data, length, timeout_ms);
+    }
+
+
+    // ### PACKET RECEIVING METHODS ###
     ZetaRF::ReadPacketResult readFixedLengthPacket(uint8_t* data, uint8_t byteCount) {
         return m_radio.readFixedLengthPacket(data, byteCount);
+    }
+
+    ZetaRF::ReadPacketResult readVariableLengthPacket(uint8_t* data, uint8_t maxByteCount, uint8_t& packetDataLength) {
+        static_assert(Config::VariableLengthPacketConfiguration, "Radio configuration does not support variable length packets.");
+        return m_radio.readVariableLengthPacket(data, maxByteCount, packetDataLength);
     }
 
     bool startListeningOnChannel(uint8_t newChannel) {
