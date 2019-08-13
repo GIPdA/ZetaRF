@@ -1,7 +1,7 @@
 /*!
  * @brief Radio configuration data adapted from SiLabs's WDS software.
  *
- * Configuration for 868 MHz Zeta module.
+ * Configuration for 433 MHz Zeta module.
  */
 
 #pragma once
@@ -22,7 +22,7 @@
 
 namespace ZetaRFConfigs {
 
-struct Config868_FixedSize_CRC_Preamble10_Sync4_Payload8
+struct Config433_FixedLength_CRC_Preamble10_Sync4_Payload8
 {
     static const uint8_t RadioConfigurationDataArray[];
 

@@ -12,7 +12,7 @@
 
 #include <cstdint>
 
-//#define ZETARF_DEBUG_ON
+#define ZETARF_DEBUG_ON
 
 #if defined(ZETARF_DEBUG_ON)
     #define debug(...)   Serial.print(__VA_ARGS__)
@@ -91,6 +91,7 @@ public:
         InvalidArgument,
         NotEnoughDataInFifo,
         PacketSizeLargerThanBuffer, // Variable length
+        InvalidPacketSize, // Variable length
         RequestFailed,
         Success
     };
@@ -192,7 +193,7 @@ public:
      * @param length Data length (bytes). Includes payload length byte when using variable length packets.
      * @param timeout_ms Max delay in ms to wait for the device to be ready to send a packet.
      */
-    bool sendPacket(uint8_t channel, uint8_t const* data, uint8_t length, unsigned long timeout_ms = 100)
+    bool sendFixedLengthPacket(uint8_t channel, uint8_t const* data, uint8_t length, unsigned long timeout_ms = 100)
     {
         // TODO: handle retransmit feature
         if (!data || length == 0)
@@ -239,13 +240,18 @@ public:
 
         // Write the varible length field
         uint8_t const vlengthField = length+1;
+
+        debug("Send VL Packet: ");
+        debugln(vlengthField);
+        debugln(length);
+
         cmd_writeTxFifo(&vlengthField, 1);
 
         // Fill the TX fifo with data
         cmd_writeTxFifo(data, length);
 
         // Start sending packet on channel, return to RX after transmit
-        cmd_startTx(channel, 0x80, length);
+        cmd_startTx(channel, 0x80, vlengthField);
 
         return statusNoError();
     }
@@ -261,10 +267,6 @@ public:
 
         // Read FIFO info to known how many bytes are pending
         Si4455_FifoInfo const& fi = cmd_readFifoInfo();
-        //Serial.print("Read: ");
-        //Serial.print(fi.RX_FIFO_COUNT);
-
-        //Serial.println();
 
         if (lastCommandFailed())
             return ReadPacketResult::RequestFailed;
@@ -281,23 +283,33 @@ public:
             return ReadPacketResult::InvalidArgument;
 
         // Read FIFO info to known how many bytes are pending
-        Si4455_FifoInfo const& fi = cmd_readFifoInfo();
+        Si4455_FifoInfo fi = cmd_readFifoInfo(); // Make a copy
         //Serial.print("Read: ");
         //Serial.print(fi.RX_FIFO_COUNT);
 
+        if (fi.RX_FIFO_COUNT < 1) {
+            debugln("Read VL Packet: Not Enough Data In Fifo");
+            return ReadPacketResult::NotEnoughDataInFifo;
+        }
+
         // Read size
-        cmd_readRxFifo(data, 1);
-        uint8_t size = *data;   // Variable length: first byte = frame size +1 (includes length field)
-        packetDataLength = size-1;
+        uint8_t vlengthField = 0;
+        fi.RX_FIFO_COUNT--; // Remove variable length field
+        cmd_readRxFifo(&vlengthField, 1);
 
-        //Serial.print(" - ");
-        //Serial.println(size);
+        debug("Read VL Packet of size: ");
+        debugln(vlengthField);
 
-        if (size > maxByteCount)
+        if (vlengthField <= 1)
+            return ReadPacketResult::InvalidPacketSize;
+
+        // Variable length: first byte = frame size +1 (includes length field)
+        packetDataLength = vlengthField-1;
+
+        if (vlengthField > maxByteCount)
             return ReadPacketResult::PacketSizeLargerThanBuffer;
 
-
-        return readPacket(fi, data+1, size-1);
+        return readPacket(fi, data, vlengthField-1);
     }
 
 
@@ -1073,6 +1085,9 @@ private:
     {
         bool const dataRemaining { (fifoInfo.RX_FIFO_COUNT > byteCount) };
 
+        debug("Read Packet: ");
+        debug(byteCount); debug('/'); debugln(fifoInfo.RX_FIFO_COUNT);
+
         if (byteCount > fifoInfo.RX_FIFO_COUNT) {
             //cmd_resetRxFifo();
             //cmd_clearAllPendingInterrupts();
@@ -1080,16 +1095,25 @@ private:
             return ReadPacketResult::NotEnoughDataInFifo;
         }
 
-        debug("Read Packet: ");
-        debug(byteCount); debug('/'); debugln(fifoInfo.RX_FIFO_COUNT);
-
         clearStatus(Status::DataAvailable);
 
         // Read FIFO
         cmd_readRxFifo(data, byteCount);
 
-        if (dataRemaining)
-            raiseStatus(Status::DataAvailable);
+        if (byteCount < fifoInfo.RX_FIFO_COUNT) {
+            uint8_t d = 0;
+            cmd_readRxFifo(&d, 1);
+            debug(">>>> ");
+            debugln(d,HEX);
+        }
+
+        // FIXME: test, revert
+        //------
+        cmd_resetRxFifo();
+
+        //if (dataRemaining)
+          //  raiseStatus(Status::DataAvailable);
+        //------
 
         updateStatus();
 
@@ -1102,7 +1126,9 @@ private:
     bool startListening(uint8_t channel, uint8_t packetLength)
     {
         debug("Listening on channel ");
-        debugln(channel);
+        debug(channel);
+        debug(" with packet size ");
+        debugln(packetLength);
 
         cmd_clearAllPendingInterrupts();
 
@@ -1128,13 +1154,16 @@ private:
     //! Read pending interrupts via FRR
     void updateStatus()
     {
+        // FIXME: test, revert
+        readAndProcessPendingInterrupts();
+/*
         // FRR B: PH_PEND
         // FRR C: MODEM_PEND
         // FRR D: CHIP_PEND
         Si4455_FrrB const& frrb = cmd_readFrrB(3);
 
         /*if (lastCommandFailed())
-            return;//*/
+            return;// * /
 
         //clearStatus();
 
@@ -1149,7 +1178,7 @@ private:
         if (clearIT)
             cmd_clearAllPendingInterrupts();
 #endif
-
+//*/
         // TODO: check how to implement properly this auto-recovery and if it is really needed
         //if (m_deviceStatus & (CommandError|CrcError)) // auto recovery
           //  startListening();

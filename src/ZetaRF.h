@@ -13,8 +13,12 @@
 #include "zetarf_radio.h"
 
 // Include other configs here
-#include "configs/config868_fixedsize_crc_preamble10_sync4_payload8.h"
-#include "configs/config433_fixedsize_crc_preamble10_sync4_payload8.h"
+#include "configs/config868_fixedlength_crc_preamble10_sync4_payload8.h"
+#include "configs/config433_fixedlength_crc_preamble10_sync4_payload8.h"
+
+#include "configs/config868_variablelength_crc_preamble10_sync4_payload8.h"
+#include "configs/config433_variablelength_crc_preamble10_sync4_payload8.h"
+
 
 #include <cstdint>
 
@@ -56,7 +60,7 @@ public:
 
     // ### PACKET SENDING METHODS ###
     bool sendPacket(uint8_t channel, uint8_t const* data, uint8_t length, unsigned long timeout_ms = 100) {
-        return m_radio.sendPacket(channel, data, length, timeout_ms);
+        return m_radio.sendFixedLengthPacket(channel, data, length, timeout_ms);
     }
 
     bool sendVariableLengthPacket(uint8_t channel, uint8_t const* data, uint8_t length, unsigned long timeout_ms = 100) {
@@ -66,7 +70,7 @@ public:
 
 
     // ### PACKET RECEIVING METHODS ###
-    ZetaRF::ReadPacketResult readFixedLengthPacket(uint8_t* data, uint8_t byteCount) {
+    ZetaRF::ReadPacketResult readPacket(uint8_t* data, uint8_t byteCount) {
         return m_radio.readFixedLengthPacket(data, byteCount);
     }
 
@@ -129,8 +133,14 @@ private:
 
 // Default configs
 template<class ...Ts>
-using ZetaRF868 = ZetaRFImpl<ZetaRFConfigs::Config868_FixedSize_CRC_Preamble10_Sync4_Payload8, Ts...>;
+using ZetaRF868 = ZetaRFImpl<ZetaRFConfigs::Config868_FixedLength_CRC_Preamble10_Sync4_Payload8, Ts...>;
 
 template<class ...Ts>
-using ZetaRF433 = ZetaRFImpl<ZetaRFConfigs::Config433_FixedSize_CRC_Preamble10_Sync4_Payload8, Ts...>;
+using ZetaRF433 = ZetaRFImpl<ZetaRFConfigs::Config433_FixedLength_CRC_Preamble10_Sync4_Payload8, Ts...>;
 
+// Configs using variable length packets
+template<class ...Ts>
+using ZetaRF868_VL = ZetaRFImpl<ZetaRFConfigs::Config868_VariableLength_CRC_Preamble10_Sync4_Payload8, Ts...>;
+
+template<class ...Ts>
+using ZetaRF433_VL = ZetaRFImpl<ZetaRFConfigs::Config433_VariableLength_CRC_Preamble10_Sync4_Payload8, Ts...>;
