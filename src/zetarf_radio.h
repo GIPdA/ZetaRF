@@ -11,6 +11,7 @@
 #include "flagset.hpp"
 
 #include <cstdint>
+#include <cstdarg>
 
 #define ZETARF_DEBUG_ON
 
