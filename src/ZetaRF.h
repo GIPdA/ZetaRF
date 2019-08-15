@@ -87,6 +87,10 @@ public:
         return m_radio.checkReceived();
     }
 
+    void resetRxFifo() {
+        m_radio.cmd_resetRxFifo();
+    }
+
     Si4455_PartInfo const& readPartInformation() {
         return m_radio.cmd_readPartInformation();
     }

@@ -13,7 +13,7 @@
 #include <cstdint>
 #include <cstdarg>
 
-#define ZETARF_DEBUG_ON
+//#define ZETARF_DEBUG_ON
 
 #if defined(ZETARF_DEBUG_ON)
     #define debug(...)   Serial.print(__VA_ARGS__)
@@ -79,12 +79,13 @@ public:
         InvalidPreamble                 = 1<<6,
         DetectedPreamble                = 1<<7,
         DetectedSync                    = 1<<8,
+        LatchedRssi                     = 1<<9,
 
         // Chip Interrupt
-        FifoUnderflowOrOverflowError    = 1<<9,
-        CommandError                    = 1<<10,
+        FifoUnderflowOrOverflowError    = 1<<10,
+        CommandError                    = 1<<11,
 
-        DeviceBusy                      = 1<<11
+        DeviceBusy                      = 1<<12
     };
 
     enum class ReadPacketResult
@@ -120,7 +121,7 @@ public:
     using Status = ZetaRFRadio::Status;
     using ReadPacketResult = ZetaRFRadio::ReadPacketResult;
 
-    //! Current device status   
+    //! Current device status
     bitflag<Status> status() const {
         return m_deviceStatus;
     }
@@ -185,8 +186,8 @@ public:
     /*!
      * Send data to @a channel.
      * Notes when using variable length packets:
-     *  - First data byte must be the payload length field.
-     *  - Payload includes the extra length field, so @a length must too.
+     *  - First data byte must be the payload length field, and its value must be the data length (ignoring this extra byte).
+     *  - e.g. To send 5 bytes of data, @a data buffer must contains: [5, data1, ... , data5] and @a length must be 6.
      * @sa sendVariableLengthPacket
      *
      * @param channel Channel to send data to.
@@ -240,19 +241,13 @@ public:
             return false;
 
         // Write the varible length field
-        uint8_t const vlengthField = length+1;
-
-        debug("Send VL Packet: ");
-        debugln(vlengthField);
-        debugln(length);
-
-        cmd_writeTxFifo(&vlengthField, 1);
+        cmd_writeTxFifo(&length, 1);
 
         // Fill the TX fifo with data
         cmd_writeTxFifo(data, length);
 
         // Start sending packet on channel, return to RX after transmit
-        cmd_startTx(channel, 0x80, vlengthField);
+        cmd_startTx(channel, 0x80, length+1);
 
         return statusNoError();
     }
@@ -285,8 +280,6 @@ public:
 
         // Read FIFO info to known how many bytes are pending
         Si4455_FifoInfo fi = cmd_readFifoInfo(); // Make a copy
-        //Serial.print("Read: ");
-        //Serial.print(fi.RX_FIFO_COUNT);
 
         if (fi.RX_FIFO_COUNT < 1) {
             debugln("Read VL Packet: Not Enough Data In Fifo");
@@ -294,23 +287,21 @@ public:
         }
 
         // Read size
-        uint8_t vlengthField = 0;
         fi.RX_FIFO_COUNT--; // Remove variable length field
-        cmd_readRxFifo(&vlengthField, 1);
+        cmd_readRxFifo(&packetDataLength, 1);
 
         debug("Read VL Packet of size: ");
-        debugln(vlengthField);
+        debugln(packetDataLength);
 
-        if (vlengthField <= 1)
+        if (packetDataLength <= 1) {
+            cmd_resetRxFifo();
             return ReadPacketResult::InvalidPacketSize;
+        }
 
-        // Variable length: first byte = frame size +1 (includes length field)
-        packetDataLength = vlengthField-1;
-
-        if (vlengthField > maxByteCount)
+        if (packetDataLength > maxByteCount)
             return ReadPacketResult::PacketSizeLargerThanBuffer;
 
-        return readPacket(fi, data, vlengthField-1);
+        return readPacket(fi, data, packetDataLength);
     }
 
 
@@ -1091,7 +1082,6 @@ private:
 
         if (byteCount > fifoInfo.RX_FIFO_COUNT) {
             //cmd_resetRxFifo();
-            //cmd_clearAllPendingInterrupts();
             debugln("Read Packet: Not Enough Data In Fifo");
             return ReadPacketResult::NotEnoughDataInFifo;
         }
@@ -1101,20 +1091,8 @@ private:
         // Read FIFO
         cmd_readRxFifo(data, byteCount);
 
-        if (byteCount < fifoInfo.RX_FIFO_COUNT) {
-            uint8_t d = 0;
-            cmd_readRxFifo(&d, 1);
-            debug(">>>> ");
-            debugln(d,HEX);
-        }
-
-        // FIXME: test, revert
-        //------
-        cmd_resetRxFifo();
-
-        //if (dataRemaining)
-          //  raiseStatus(Status::DataAvailable);
-        //------
+        if (dataRemaining)
+            raiseStatus(Status::DataAvailable);
 
         updateStatus();
 
@@ -1155,16 +1133,14 @@ private:
     //! Read pending interrupts via FRR
     void updateStatus()
     {
-        // FIXME: test, revert
-        readAndProcessPendingInterrupts();
-/*
+
         // FRR B: PH_PEND
         // FRR C: MODEM_PEND
         // FRR D: CHIP_PEND
         Si4455_FrrB const& frrb = cmd_readFrrB(3);
 
-        /*if (lastCommandFailed())
-            return;// * /
+        if (lastCommandFailed())
+            return;
 
         //clearStatus();
 
@@ -1179,7 +1155,7 @@ private:
         if (clearIT)
             cmd_clearAllPendingInterrupts();
 #endif
-//*/
+
         // TODO: check how to implement properly this auto-recovery and if it is really needed
         //if (m_deviceStatus & (CommandError|CrcError)) // auto recovery
           //  startListening();
@@ -1242,18 +1218,19 @@ private:
         }
 
         if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_PREAMBLE_DETECT_PEND_BIT) {
-            //clearIT = true;
+            clearIT = true;
             raiseStatus(Status::DetectedPreamble);
             debugln("Modem IT: Detected Preamble");
         }
         if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_SYNC_DETECT_PEND_BIT) {
-            //clearIT = true;
+            clearIT = true;
             raiseStatus(Status::DetectedSync);
             debugln("Modem IT: Detected Sync");
         }
 
         if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_RSSI_PEND_BIT) {
-            //clearIT = true;
+            clearIT = true;
+            raiseStatus(Status::LatchedRssi);
             debugln("Modem IT: RSSI Latched");
         }
 
@@ -1491,6 +1468,6 @@ private:
     bitflag<Status> m_deviceStatus {Status::NoStatus};
 
     uint8_t m_listeningChannel {0};
-    uint8_t m_transmittingChannel {0};
+    //uint8_t m_transmittingChannel {0};
     uint8_t m_packetLength {0};
 };
