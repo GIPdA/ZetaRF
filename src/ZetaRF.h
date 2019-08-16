@@ -58,8 +58,18 @@ public:
 
     //bool isNotResponding() const;
 
+
     // ### PACKET SENDING METHODS ###
+
+    //! Send either fixed or variable length packet depending on radio config
     bool sendPacket(uint8_t channel, uint8_t const* data, uint8_t length, unsigned long timeout_ms = 100) {
+        if (Config::VariableLengthPacketConfiguration)
+            return m_radio.sendVariableLengthPacket(channel, data, length, timeout_ms);
+        else
+            return m_radio.sendFixedLengthPacket(channel, data, length, timeout_ms);
+    }
+
+    bool sendFixedLengthPacket(uint8_t channel, uint8_t const* data, uint8_t length, unsigned long timeout_ms = 100) {
         return m_radio.sendFixedLengthPacket(channel, data, length, timeout_ms);
     }
 
@@ -70,7 +80,18 @@ public:
 
 
     // ### PACKET RECEIVING METHODS ###
+
+    //! Read either fixed or variable length packet depending on radio config
     ZetaRF::ReadPacketResult readPacket(uint8_t* data, uint8_t byteCount) {
+        if (Config::VariableLengthPacketConfiguration) {
+            uint8_t packetDataLength {0};
+            return m_radio.readVariableLengthPacket(data, byteCount, packetDataLength);
+        }
+        else
+            return m_radio.readFixedLengthPacket(data, byteCount);
+    }
+
+    ZetaRF::ReadPacketResult readFixedLengthPacket(uint8_t* data, uint8_t byteCount) {
         return m_radio.readFixedLengthPacket(data, byteCount);
     }
 
