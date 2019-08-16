@@ -26,7 +26,34 @@ namespace ZetaRF
 {
     using RadioState = ZetaRFRadio::RadioState;
     using Status = ZetaRFRadio::Status;
-    using ReadPacketResult = ZetaRFRadio::ReadPacketResult;
+    using ReadResult = ZetaRFRadio::ReadPacketResult;
+
+    class ReadPacketResult {
+        friend inline bool operator==(ReadPacketResult a, ReadPacketResult b);
+        friend inline bool operator==(ReadPacketResult a, ReadResult b);
+        ZetaRFRadio::ReadPacketResult m_value;
+
+    public:
+        /* implicit */ ReadPacketResult(decltype(m_value) value) : m_value(value) {}
+
+        operator bool() const {
+            return m_value == ZetaRFRadio::ReadPacketResult::Success;
+        }
+    };
+
+    inline bool operator==(ReadPacketResult a, ReadPacketResult b) {
+        return a.m_value == b.m_value;
+    }
+    inline bool operator==(ReadPacketResult a, ReadResult b) {
+        return a.m_value == b;
+    }
+
+    inline bool operator!=(ReadPacketResult a, ReadPacketResult b) {
+        return !(a == b);
+    }
+    inline bool operator!=(ReadPacketResult a, ReadResult b) {
+        return !(a == b);
+    }
 }
 
 
