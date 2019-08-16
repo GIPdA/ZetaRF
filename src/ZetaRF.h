@@ -41,6 +41,18 @@ public:
         return m_radio.status();
     }
 
+    bool checkFor(ZetaRF::Status status) {
+        return m_radio.testAndClearStatus(status);
+    }
+
+    bool isAlive() {
+        return m_radio.isAlive();
+    }
+
+    bool controlError() {
+        return m_radio.statusHasError();
+    }
+
 
     //!! Load radio config
     bool begin() {
@@ -99,6 +111,7 @@ public:
         static_assert(Config::VariableLengthPacketConfiguration, "Radio configuration does not support variable length packets.");
         return m_radio.readVariableLengthPacket(data, maxByteCount, packetDataLength);
     }
+
 
     bool startListeningOnChannel(uint8_t newChannel) {
         return m_radio.startListeningOnChannel(newChannel);
