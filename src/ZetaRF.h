@@ -112,6 +112,20 @@ public:
         m_radio.cmd_resetRxFifo();
     }
 
+
+    unsigned int readCurrentRssi()
+    {
+        auto const& rssi = m_radio.cmd_readModemStatus().CURR_RSSI;
+        return m_radio.statusHasError() ? 0 : rssi;
+    }
+
+    unsigned int readLatchedRssi()
+    {
+        auto const& rssi = m_radio.cmd_readModemStatus().LATCH_RSSI;
+        return m_radio.statusHasError() ? 0 : rssi;
+    }
+
+
     Si4455_PartInfo const& readPartInformation() {
         return m_radio.cmd_readPartInformation();
     }
