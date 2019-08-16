@@ -400,6 +400,11 @@ public:
         return false;
     }
 
+    void clear(Status status)
+    {
+        clearStatus(status);
+    }
+
 
     //! Hardware reset the chip using the shutdown pin
     void hardwareReset()
