@@ -52,7 +52,7 @@ class ZetaRFRadio
 public:
     enum class RadioState
     {
-        Invalid,
+        Invalid = 0,
         Sleep,
         SpiActive,
         Ready,
@@ -68,24 +68,24 @@ public:
         NoStatus = 0,
 
         // Packet Handler
-        DataTransmitted                 = 1<<0,
-        DataAvailable                   = 1<<1,
-        CrcError                        = 1<<2,
-        FifoAlmostEmpty                 = 1<<3,
-        FifoAlmostFull                  = 1<<4,
+        DataTransmitted,
+        DataAvailable,
+        CrcError,
+        FifoAlmostEmpty,
+        FifoAlmostFull,
 
         // Modem Interrupt
-        InvalidSync                     = 1<<5,
-        InvalidPreamble                 = 1<<6,
-        DetectedPreamble                = 1<<7,
-        DetectedSync                    = 1<<8,
-        LatchedRssi                     = 1<<9,
+        InvalidSync,
+        InvalidPreamble,
+        DetectedPreamble,
+        DetectedSync,
+        LatchedRssi,
 
         // Chip Interrupt
-        FifoUnderflowOrOverflowError    = 1<<10,
-        CommandError                    = 1<<11,
+        FifoUnderflowOrOverflowError,
+        CommandError,
 
-        DeviceBusy                      = 1<<12
+        DeviceBusy 
     };
 
     enum class ReadPacketResult
@@ -132,7 +132,6 @@ public:
     bool statusNoError() const {
         return !statusHasError();
     }
-
 
 
     //! Begin the library
@@ -337,6 +336,15 @@ public:
         return statusNoError() && (m_listeningChannel == newChannel);
     }
 
+    bool startListeningSinglePacketOnChannel(uint8_t newChannel)
+    {
+        if (!startListeningSinglePacket(newChannel, m_packetLength))
+            return false;
+
+        m_listeningChannel = askCurrentChannel();
+        return statusNoError() && (m_listeningChannel == newChannel);
+    }
+
     bool restartListening()
     {
         return startListening(m_listeningChannel, m_packetLength);
@@ -376,8 +384,9 @@ public:
      */
     bool isAlive()
     {
+        cleanCommandBuffer();
         Si4455_DeviceState const& cs = cmd_requestDeviceState();
-        return (cs.CURR_STATE != 0);// && cs.CURRENT_CHANNEL == m_listeningChannel);
+        return (cs.CURR_STATE != 0) && (cs.CURR_STATE != 0xFF) && lastCommandSucceeded();// && cs.CURRENT_CHANNEL == m_listeningChannel);
     }
 
     //! Returns the current RSSI reading from the modem.
@@ -1106,6 +1115,7 @@ private:
 
 
     //! Ask to start listening on given channel with given packet length.
+    //! Auto-returns to RX mode after receiving a valid packet.
     //! For variable length packet configuration, set packetLegth to zero.
     bool startListening(uint8_t channel, uint8_t packetLength)
     {
@@ -1114,12 +1124,35 @@ private:
         debug(" with packet size ");
         debugln(packetLength);
 
+        clearStatus();
         cmd_clearAllPendingInterrupts();
 
         // Start Receiving packet on channel, START immediately, Packet n bytes long
         cmd_startRx(channel, 0, packetLength,
                     SI4455_CMD_START_RX_ARG_RXTIMEOUT_STATE_ENUM_RX,
                     SI4455_CMD_START_RX_ARG_RXVALID_STATE_ENUM_RX,
+                    SI4455_CMD_START_RX_ARG_RXINVALID_STATE_ENUM_RX);
+
+        return lastCommandSucceeded();
+    }
+
+    //! Ask to start listening on given channel with given packet length.
+    //! Goes to Ready mode after receiving a valid packet. Call startListening again to listen for new packets.
+    //! For variable length packet configuration, set packetLegth to zero.
+    bool startListeningSinglePacket(uint8_t channel, uint8_t packetLength)
+    {
+        debug("Listening single packet on channel ");
+        debug(channel);
+        debug(" with packet size ");
+        debugln(packetLength);
+
+        clearStatus();
+        cmd_clearAllPendingInterrupts();
+
+        // Start Receiving packet on channel, START immediately, Packet n bytes long
+        cmd_startRx(channel, 0, packetLength,
+                    SI4455_CMD_START_RX_ARG_RXTIMEOUT_STATE_ENUM_RX,
+                    SI4455_CMD_START_RX_ARG_RXVALID_STATE_ENUM_READY,
                     SI4455_CMD_START_RX_ARG_RXINVALID_STATE_ENUM_RX);
 
         return lastCommandSucceeded();
@@ -1214,23 +1247,23 @@ private:
         if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_INVALID_SYNC_PEND_BIT) {
             clearIT = true;
             raiseStatus(Status::InvalidSync);
-            debugln("Modem IT: Invalid Sync");
+            //debugln("Modem IT: Invalid Sync");
         }
         if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_INVALID_PREAMBLE_PEND_BIT) {
             clearIT = true;
             raiseStatus(Status::InvalidPreamble);
-            debugln("Modem IT: Invalid Preamble");
+            //debugln("Modem IT: Invalid Preamble");
         }
 
         if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_PREAMBLE_DETECT_PEND_BIT) {
             clearIT = true;
             raiseStatus(Status::DetectedPreamble);
-            debugln("Modem IT: Detected Preamble");
+            //debugln("Modem IT: Detected Preamble");
         }
         if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_SYNC_DETECT_PEND_BIT) {
             clearIT = true;
             raiseStatus(Status::DetectedSync);
-            debugln("Modem IT: Detected Sync");
+            //debugln("Modem IT: Detected Sync");
         }
 
         if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_RSSI_PEND_BIT) {
@@ -1465,6 +1498,11 @@ private:
     void deviceReady()
     {
         clearStatus(Status::DeviceBusy);
+    }
+
+    // Write zeros in command buffer
+    void cleanCommandBuffer() {
+        memset(m_commandReply.RAW, 0, 16);
     }
 
 

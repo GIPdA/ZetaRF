@@ -54,6 +54,35 @@ namespace ZetaRF
     inline bool operator!=(ReadPacketResult a, ReadResult b) {
         return !(a == b);
     }
+
+    constexpr ZetaRF::RadioState radioStateFromValue(uint8_t state) {
+        switch (state) {
+            case 1: return ZetaRF::RadioState::Sleep;
+            case 2: return ZetaRF::RadioState::SpiActive;
+            case 3: return ZetaRF::RadioState::Ready;
+            case 4: return ZetaRF::RadioState::Ready2;
+            case 5: return ZetaRF::RadioState::TxTune;
+            case 6: return ZetaRF::RadioState::RxTune;
+            case 7: return ZetaRF::RadioState::Tx;
+            case 8: return ZetaRF::RadioState::Rx;
+
+            default: return ZetaRF::RadioState::Invalid;
+        }
+    }
+    constexpr const char* radioStateText(ZetaRF::RadioState state) {
+        switch (state) {
+            case ZetaRF::RadioState::Sleep: return "Sleep";
+            case ZetaRF::RadioState::SpiActive: return "SpiActive";
+            case ZetaRF::RadioState::Ready: return "Ready";
+            case ZetaRF::RadioState::Ready2: return "Ready2";
+            case ZetaRF::RadioState::TxTune: return "TxTune";
+            case ZetaRF::RadioState::RxTune: return "RxTune";
+            case ZetaRF::RadioState::Tx: return "Tx";
+            case ZetaRF::RadioState::Rx: return "Rx";
+
+            default: return "Invalid";
+        }
+    }
 }
 
 
@@ -62,7 +91,9 @@ class ZetaRFImpl// : public ZetaRF
 {
 public:
     //! Current internal radio state
-    ZetaRF::RadioState radioState();
+    ZetaRF::RadioState radioState() {
+        return m_radio.radioState();
+    }
 
     bitflag<ZetaRF::Status> status() const {
         return m_radio.status();
@@ -143,6 +174,9 @@ public:
     bool startListeningOnChannel(uint8_t newChannel) {
         return m_radio.startListeningOnChannel(newChannel);
     }
+    bool startListeningSinglePacketOnChannel(uint8_t newChannel) {
+        return m_radio.startListeningSinglePacketOnChannel(newChannel);
+    }
 
     bool checkReceived() {
         return m_radio.checkReceived();
@@ -155,13 +189,15 @@ public:
 
     unsigned int readCurrentRssi()
     {
-        auto const& rssi = m_radio.cmd_readModemStatus().CURR_RSSI;
+        auto rssi = m_radio.cmd_readModemStatus().CURR_RSSI;
         return m_radio.statusHasError() ? 0 : rssi;
     }
 
+    //! Rssi value of the last received packet (reset upon entering RX).
+    //! Valid only when using single packet listening mode, if you read it before restarting RX.
     unsigned int readLatchedRssi()
     {
-        auto const& rssi = m_radio.cmd_readModemStatus().LATCH_RSSI;
+        auto rssi = m_radio.cmd_readModemStatus().LATCH_RSSI;
         return m_radio.statusHasError() ? 0 : rssi;
     }
 
@@ -172,38 +208,7 @@ public:
 
     Si4455_FuncInfo const& readFunctionRevisionInformation() {
         return m_radio.cmd_readFunctionRevisionInformation();
-    }
-
-
-protected:
-    ZetaRF::RadioState radioStateFromValue(uint8_t state) const {
-        switch (state) {
-            case 1: return ZetaRF::RadioState::Sleep;
-            case 2: return ZetaRF::RadioState::SpiActive;
-            case 3: return ZetaRF::RadioState::Ready;
-            case 4: return ZetaRF::RadioState::Ready2;
-            case 5: return ZetaRF::RadioState::TxTune;
-            case 6: return ZetaRF::RadioState::RxTune;
-            case 7: return ZetaRF::RadioState::Tx;
-            case 8: return ZetaRF::RadioState::Rx;
-
-            default: return ZetaRF::RadioState::Invalid;
-        }
-    }
-    const char* radioStateText(ZetaRF::RadioState state) const {
-        switch (state) {
-            case ZetaRF::RadioState::Sleep: return "Sleep";
-            case ZetaRF::RadioState::SpiActive: return "SpiActive";
-            case ZetaRF::RadioState::Ready: return "Ready";
-            case ZetaRF::RadioState::Ready2: return "Ready2";
-            case ZetaRF::RadioState::TxTune: return "TxTune";
-            case ZetaRF::RadioState::RxTune: return "RxTune";
-            case ZetaRF::RadioState::Tx: return "Tx";
-            case ZetaRF::RadioState::Rx: return "Rx";
-
-            default: return "Invalid";
-        }
-    }
+    }  
 
 private:
     ZetaRFRadioImpl< ZetaRfHal<HalTypes...> > m_radio;
