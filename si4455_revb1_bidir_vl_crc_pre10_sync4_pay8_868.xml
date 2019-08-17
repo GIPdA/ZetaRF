@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="Windows-1252"?>
-<RCA_ProjectData ProjectName="Bidirectional packet" ChipType="Si4455" ChipRevision="B1" Version="3.2.10.0">
+<RCA_ProjectData ProjectName="Bidirectional packet" ChipType="Si4455" ChipRevision="B1" Version="3.2.11.0">
   <DataItems>
     <tbpFrequencyAndPower Type="System.Windows.Forms.TabPage">
       <grbFequencyControl Type="System.Windows.Forms.GroupBox">
@@ -105,7 +105,7 @@
           <pnlPayloadBack Type="System.Windows.Forms.Panel">
             <pnlPayloadFront Type="System.Windows.Forms.Panel">
               <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudPayloadLength">
-                <Value>8</Value>
+                <Value>61</Value>
               </DataItem>
               <haiPayloadContent Type="NewWDS.Applications.App_Common.PacketConfigControl.HexAsciiInputControl">
                 <DataItem Type="System.Windows.Forms.RadioButton" Name="rdbASCII">
@@ -116,7 +116,7 @@
                 </DataItem>
                 <pnlInput Type="System.Windows.Forms.Panel">
                   <DataItem Type="System.Windows.Forms.MaskedTextBox" Name="mtbInput">
-                    <Text>C5 C5 C5 C5 C5 C5 C5 C5</Text>
+                    <Text>C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5</Text>
                   </DataItem>
                 </pnlInput>
               </haiPayloadContent>
