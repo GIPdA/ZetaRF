@@ -3,6 +3,8 @@
 #include <limits>
 #include <bitset>
 
+namespace flagset {
+
 template<typename Enum, bool IsEnum = std::is_enum<Enum>::value>
 class bitflag;
 
@@ -65,4 +67,6 @@ constexpr auto operator~(Enum e) noexcept
     -> std::enable_if_t<std::is_enum<Enum>::value, bitflag<Enum>>
 {
     return ~bitflag<Enum>(e);
+}
+
 }

@@ -95,7 +95,7 @@ public:
         return m_radio.radioState();
     }
 
-    bitflag<ZetaRF::Status> status() const {
+    flagset::bitflag<ZetaRF::Status> status() const {
         return m_radio.status();
     }
 

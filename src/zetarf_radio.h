@@ -102,9 +102,9 @@ public:
 
 //CREATE_FLAGSET(ZetaRFRadio::Status)
 /*
-constexpr bitflag<ZetaRFRadio::Status> operator~(ZetaRFRadio::Status right)
+constexpr flagset::bitflag<ZetaRFRadio::Status> operator~(ZetaRFRadio::Status right)
 {
-  return ~bitflag<ZetaRFRadio::Status>(right);
+  return ~flagset::bitflag<ZetaRFRadio::Status>(right);
 }//*/
 
 
@@ -122,11 +122,12 @@ public:
     using ReadPacketResult = ZetaRFRadio::ReadPacketResult;
 
     //! Current device status
-    bitflag<Status> status() const {
+    flagset::bitflag<Status> status() const {
         return m_deviceStatus;
     }
 
     bool statusHasError() const {
+        using namespace flagset;
         return (m_deviceStatus & (Status::DeviceBusy | Status::CommandError));
     }
     bool statusNoError() const {
@@ -1473,9 +1474,11 @@ private:
 
 private:
     void raiseStatus(Status v) {
+        using namespace flagset;
         m_deviceStatus |= v;
     }
     void clearStatus(Status v) {
+        using namespace flagset;
         m_deviceStatus &= ~v;
     }
     void clearStatus() {
@@ -1488,6 +1491,7 @@ private:
             clearStatus(v);
     }
     bool testStatus(Status status) const {
+        using namespace flagset;
         return m_deviceStatus & status;
     }
 
@@ -1508,7 +1512,7 @@ private:
 
     si4455_cmd_reply_union m_commandReply;
 
-    bitflag<Status> m_deviceStatus {Status::NoStatus};
+    flagset::bitflag<Status> m_deviceStatus {Status::NoStatus};
 
     uint8_t m_listeningChannel {0};
     //uint8_t m_transmittingChannel {0};
