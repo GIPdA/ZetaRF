@@ -122,6 +122,16 @@ public:
         return m_radio.beginWithConfigurationDataArray(Config::RadioConfigurationDataArray);
     }
 
+    //! Load radio config with the specified packet length (no effect in variable length packet mode).
+    bool beginWithPacketLengthOf(uint8_t packetLength) {
+        if (Config::VariableLengthPacketConfiguration)
+            m_radio.setPacketLength(0); // Variable length packets listen with packet size of zero
+        else
+            m_radio.setPacketLength(packetLength);
+
+        return m_radio.beginWithConfigurationDataArray(Config::RadioConfigurationDataArray);
+    }
+
     bool update() {
         return m_radio.update();
     }
