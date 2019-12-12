@@ -128,6 +128,11 @@ public:
 
     //bool isNotResponding() const;
 
+    //! Hold the chip in reset. begin must be called to restart it.
+    void shutdown() {
+        m_radio.holdInReset();
+    }
+
 
     // ### PACKET SENDING METHODS ###
 
