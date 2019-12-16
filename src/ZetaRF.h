@@ -164,6 +164,7 @@ public:
         return m_radio.sendFixedLengthPacket(channel, data, length, timeout_ms);
     }
 
+    //! Send variable length packet.
     bool sendVariableLengthPacket(uint8_t channel, uint8_t const* data, uint8_t length, unsigned long timeout_ms = 100) {
         static_assert(Config::VariableLengthPacketConfiguration, "Radio configuration does not support variable length packets.");
         return m_radio.sendVariableLengthPacket(channel, data, length, timeout_ms);
