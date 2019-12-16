@@ -146,12 +146,12 @@ public:
 
     // ### PACKET SENDING METHODS ###
 
-    //! Send either fixed or variable length packet depending on radio config
+    //! Send either fixed or variable length packet depending on radio config.
     bool sendPacket(uint8_t channel, uint8_t const* data, uint8_t length, unsigned long timeout_ms = 100) {
         if (Config::VariableLengthPacketConfiguration)
             return m_radio.sendVariableLengthPacket(channel, data, length, timeout_ms);
         else
-            return m_radio.sendFixedLengthPacket(channel, data, length, timeout_ms);
+            return m_radio.sendFixedLengthPacket(channel, data, timeout_ms);
     }
 
     //! Send fixed length packet, config length or user-set length is used. RX must be waiting for that length of packet.
