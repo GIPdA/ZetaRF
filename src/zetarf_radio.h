@@ -218,6 +218,12 @@ public:
         return statusNoError();
     }
 
+    //! Convenience method, uses the packet length specified in the config data or via @a setPacketLength.
+    bool sendFixedLengthPacket(uint8_t channel, uint8_t const* data, unsigned long timeout_ms = 100)
+    {
+        sendFixedLengthPacket(channel, data, m_packetLength, timeout_ms);
+    }
+
     /*!
      * Convenience method to send variable length packets without the need to handle the extra payload field.
      * Do not include any extra payload byte or account for it in @a length, it is handled internally.

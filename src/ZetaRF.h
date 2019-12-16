@@ -154,6 +154,12 @@ public:
             return m_radio.sendFixedLengthPacket(channel, data, length, timeout_ms);
     }
 
+    //! Send fixed length packet, config length or user-set length is used. RX must be waiting for that length of packet.
+    bool sendFixedLengthPacket(uint8_t channel, uint8_t const* data, unsigned long timeout_ms = 100) {
+        return m_radio.sendFixedLengthPacket(channel, data, timeout_ms);
+    }
+
+    //! Send fixed length packet with specified length. RX must be waiting for that length of packet.
     bool sendFixedLengthPacket(uint8_t channel, uint8_t const* data, uint8_t length, unsigned long timeout_ms = 100) {
         return m_radio.sendFixedLengthPacket(channel, data, length, timeout_ms);
     }
