@@ -147,21 +147,24 @@ public:
     // ### PACKET SENDING METHODS ###
 
     //! Send either fixed or variable length packet depending on radio config.
-    bool sendPacket(uint8_t channel, uint8_t const* data, uint8_t length, unsigned long timeout_ms = 100) {
+    //! For fixed length packet mode, if @a dataSize is less than the packet size, zeros are automatically appended.
+    bool sendPacket(uint8_t channel, uint8_t const* data, uint8_t dataSize, unsigned long timeout_ms = 100) {
         if (Config::VariableLengthPacketConfiguration)
-            return m_radio.sendVariableLengthPacket(channel, data, length, timeout_ms);
+            return m_radio.sendVariableLengthPacket(channel, data, dataSize, timeout_ms);
         else
-            return m_radio.sendFixedLengthPacket(channel, data, timeout_ms);
+            return m_radio.sendFixedLengthPacket(channel, data, dataSize, timeout_ms);
     }
 
     //! Send fixed length packet, config length or user-set length is used. RX must be waiting for that length of packet.
+    //! @a data must point to at least 'packet length' bytes.
     bool sendFixedLengthPacket(uint8_t channel, uint8_t const* data, unsigned long timeout_ms = 100) {
         return m_radio.sendFixedLengthPacket(channel, data, timeout_ms);
     }
 
     //! Send fixed length packet with specified length. RX must be waiting for that length of packet.
-    bool sendFixedLengthPacket(uint8_t channel, uint8_t const* data, uint8_t length, unsigned long timeout_ms = 100) {
-        return m_radio.sendFixedLengthPacket(channel, data, length, timeout_ms);
+    //! If @a dataSize is less than the packet size, zeros are automatically appended.
+    bool sendFixedLengthPacket(uint8_t channel, uint8_t const* data, uint8_t dataSize, unsigned long timeout_ms = 100) {
+        return m_radio.sendFixedLengthPacket(channel, data, dataSize, timeout_ms);
     }
 
     //! Send variable length packet.
@@ -230,7 +233,7 @@ public:
 
     Si4455_FuncInfo const& readFunctionRevisionInformation() {
         return m_radio.cmd_readFunctionRevisionInformation();
-    }  
+    }
 
 private:
     ZetaRFRadioImpl< ZetaRfHal<HalTypes...> > m_radio;

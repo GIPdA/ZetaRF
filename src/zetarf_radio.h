@@ -85,7 +85,7 @@ public:
         FifoUnderflowOrOverflowError,
         CommandError,
 
-        DeviceBusy 
+        DeviceBusy
     };
 
     enum class ReadPacketResult
@@ -195,10 +195,10 @@ public:
      * @param length Data length (bytes). Includes payload length byte when using variable length packets.
      * @param timeout_ms Max delay in ms to wait for the device to be ready to send a packet.
      */
-    bool sendFixedLengthPacket(uint8_t channel, uint8_t const* data, uint8_t length, unsigned long timeout_ms = 100)
+    bool sendFixedLengthPacket(uint8_t channel, uint8_t const* data, uint8_t dataSize, unsigned long timeout_ms = 100)
     {
         // TODO: handle retransmit feature
-        if (!data || length == 0)
+        if (!data || dataSize == 0)
             return false;
 
         cmd_clearAllPendingInterrupts(); // MAYBE: needed?
@@ -210,18 +210,16 @@ public:
             return false;
 
         // Fill the TX fifo with data
-        cmd_writeTxFifo(data, length);
+        cmd_writeTxFifo(data, min(m_packetLength, dataSize));
+
+        // Fill remaining with data
+        if (m_packetLength > dataSize)
+            cmd_writeTxFifoWithZeros(m_packetLength-dataSize);
 
         // Start sending packet on channel, return to RX after transmit
-        cmd_startTx(channel, 0x80, length);
+        cmd_startTx(channel, 0x80, m_packetLength);
 
         return statusNoError();
-    }
-
-    //! Convenience method, uses the packet length specified in the config data or via @a setPacketLength.
-    bool sendFixedLengthPacket(uint8_t channel, uint8_t const* data, unsigned long timeout_ms = 100)
-    {
-        sendFixedLengthPacket(channel, data, m_packetLength, timeout_ms);
     }
 
     /*!
@@ -460,6 +458,11 @@ public:
     void cmd_writeTxFifo(const uint8_t* data, uint8_t length)
     {
         writeDataWithoutClearToSend(SI4455_CMD_ID_WRITE_TX_FIFO, data, length);
+    }
+    //! Writes data byte(s) to the TX FIFO.
+    void cmd_writeTxFifoWithZeros(uint8_t length)
+    {
+        writeZerosWithoutClearToSend(SI4455_CMD_ID_WRITE_TX_FIFO, length);
     }
 
 
@@ -1390,7 +1393,7 @@ private:
     //! Waits for CTS and gets a command response from the radio chip.
     bool readData(uint8_t command, uint8_t* data, uint8_t count)
     {
-        if (!waitForClearToSend()) 
+        if (!waitForClearToSend())
             return false;
 
         return readDataWithoutClearToSend(command, data, count);
@@ -1410,6 +1413,15 @@ private:
         hal.restartOrBeginSpiTransaction();
         hal.spiWriteByte(command);
         hal.spiWriteData(data, count);
+        hal.endSpiTransaction();
+        return true;
+    }
+    bool writeZerosWithoutClearToSend(uint8_t command, uint8_t count)
+    {
+        hal.restartOrBeginSpiTransaction();
+        hal.spiWriteByte(command);
+        while (count--)
+            hal.spiWriteByte(0);
         hal.endSpiTransaction();
         return true;
     }
