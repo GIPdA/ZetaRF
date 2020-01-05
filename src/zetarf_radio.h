@@ -1197,12 +1197,12 @@ private:
         clearIT |= processModemInterruptPending(frrb.FRR_C_VALUE);
         clearIT |= processChipInterruptPending(frrb.FRR_D_VALUE);
 
-#ifdef ZETARF_DEBUG_ON
-        cmd_clearAllPendingInterrupts();
-#else
+//#ifdef ZETARF_DEBUG_ON
+//        cmd_clearAllPendingInterrupts();
+//#else
         if (clearIT)
             cmd_clearAllPendingInterrupts();
-#endif
+//#endif
 
         // TODO: check how to implement properly this auto-recovery and if it is really needed
         //if (m_deviceStatus & (CommandError|CrcError)) // auto recovery
