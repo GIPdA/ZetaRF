@@ -10,9 +10,14 @@
 #include <Arduino.h>
 #include <SPI.h>
 
+#ifdef __AVR__
+#include "avr_helpers/type_traits.h"
+#endif
+
 #define ZETARF_SPI_SETTINGS_DEFAULT SPISettings(1000000UL, MSBFIRST, SPI_MODE0)
 
 #define ZETARF_SPI_SETTINGS         ZETARF_SPI_SETTINGS_DEFAULT
+
 
 
 template<int PinNumber>
@@ -21,37 +26,29 @@ struct PinSelector
     static constexpr int Pin = PinNumber;
 };
 
-struct ChipSelectPinSelector
-{
-};
-struct ShutdownPinSelector
-{
-};
-struct IrqPinSelector
-{
-};
+struct ChipSelectPinSelector {};
+struct ShutdownPinSelector {};
+struct IrqPinSelector {};
 
 template<int PinNumber>
-struct ChipSelectPin : public ChipSelectPinSelector, public PinSelector<PinNumber>
-{
-};
+struct ChipSelectPin : public ChipSelectPinSelector, public PinSelector<PinNumber> {};
 template<int PinNumber>
-struct ShutdownPin : public ShutdownPinSelector, public PinSelector<PinNumber>
-{
-};
+struct ShutdownPin : public ShutdownPinSelector, public PinSelector<PinNumber> {};
 template<int PinNumber>
-struct IrqPin : public IrqPinSelector, public PinSelector<PinNumber>
-{
-};
+struct IrqPin : public IrqPinSelector, public PinSelector<PinNumber> {};
 
 namespace ZetaRF
 {
     template<int PinNumber>
     using CS = ChipSelectPin<PinNumber>;
     template<int PinNumber>
+    using nSEL = ChipSelectPin<PinNumber>;
+    template<int PinNumber>
     using SDN = ShutdownPin<PinNumber>;
     template<int PinNumber>
     using IRQ = IrqPin<PinNumber>;
+    template<int PinNumber>
+    using nIRQ = IrqPin<PinNumber>;
 }
 
 
@@ -170,13 +167,10 @@ public:
 
 
 // HAL with GPIO 1 as CTS output
-struct ClearToSendPinSelector
-{
-};
+// WARNING: the radio config needs to support it!
+struct ClearToSendPinSelector {};
 template<int PinNumber>
-struct ClearToSendPin : public ClearToSendPinSelector, public PinSelector<PinNumber>
-{
-};
+struct ClearToSendPin : public ClearToSendPinSelector, public PinSelector<PinNumber> {};
 
 template <class TChipSelectPin, class TShutdownPin, class TIrqPin, class TClearToSendPin>
 class ZetaRfHal_Gpio1AsClearToSend : ZetaRfHal<TChipSelectPin, TShutdownPin, TIrqPin>
@@ -187,17 +181,16 @@ public:
     static constexpr bool HasHardwareClearToSend = true;
 
     ZetaRfHal_Gpio1AsClearToSend() {
-        // Check pins
         static_assert(std::is_base_of<ClearToSendPinSelector, TClearToSendPin>::value, "Fourth parameter of ZetaRF must be the Clear To Send pin. Use ClearToSendPin<11> to use pin 11.");
     }
 
     bool initialize() {
         pinMode(ClearToSend_pin, INPUT_PULLUP);
+        // TODO: add GPIO config?
         return ZetaRfHal<TChipSelectPin, TShutdownPin, TIrqPin>::initialize();;
     }
 
-    bool isClearToSend() const
-    {
+    bool isClearToSend() const {
         return (digitalRead(ClearToSend_pin) != LOW);
     }
 };

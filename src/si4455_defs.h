@@ -8,7 +8,7 @@
 #ifndef _SI4455_DEFS_H_
 #define _SI4455_DEFS_H_
 
-#include <cstdint>
+#include <stdint.h>
 
 typedef union
 {

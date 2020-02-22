@@ -8,10 +8,8 @@
 
 #include "si4455_defs.h"
 
-#include "flagset.hpp"
-
-#include <cstdint>
-#include <cstdarg>
+#include <stdint.h>
+#include <stdarg.h>
 
 //#define ZETARF_DEBUG_ON
 
@@ -99,14 +97,36 @@ public:
     };
 };
 
-
-//CREATE_FLAGSET(ZetaRFRadio::Status)
-/*
-constexpr flagset::bitflag<ZetaRFRadio::Status> operator~(ZetaRFRadio::Status right)
+constexpr ZetaRFRadio::Status operator |(ZetaRFRadio::Status left, ZetaRFRadio::Status right) noexcept
 {
-  return ~flagset::bitflag<ZetaRFRadio::Status>(right);
-}//*/
-
+    return static_cast<ZetaRFRadio::Status>(static_cast<uint32_t>(left) | static_cast<uint32_t>(right));
+}
+inline ZetaRFRadio::Status operator |=(ZetaRFRadio::Status& left, ZetaRFRadio::Status right) noexcept
+{
+    left = left | right;
+    return left;
+}
+constexpr ZetaRFRadio::Status operator &(ZetaRFRadio::Status left, ZetaRFRadio::Status right) noexcept
+{
+  return static_cast<ZetaRFRadio::Status>(static_cast<uint32_t>(left) & static_cast<uint32_t>(right));
+}
+inline ZetaRFRadio::Status operator &=(ZetaRFRadio::Status& left, ZetaRFRadio::Status right) noexcept
+{
+    left = left & right;
+    return left;
+}
+constexpr ZetaRFRadio::Status operator ^(ZetaRFRadio::Status left, ZetaRFRadio::Status right) noexcept
+{
+  return static_cast<ZetaRFRadio::Status>(static_cast<uint32_t>(left) ^ static_cast<uint32_t>(right));
+}
+constexpr ZetaRFRadio::Status operator ~(ZetaRFRadio::Status e) noexcept
+{
+    return static_cast<ZetaRFRadio::Status>(~static_cast<uint32_t>(e));
+}
+constexpr bool is_null(ZetaRFRadio::Status e) noexcept
+{
+    return static_cast<uint32_t>(e) == 0;
+}
 
 /*!
  * ZetaRF Radio Device Interface
@@ -122,13 +142,12 @@ public:
     using ReadPacketResult = ZetaRFRadio::ReadPacketResult;
 
     //! Current device status
-    flagset::bitflag<Status> status() const {
+    Status status() const {
         return m_deviceStatus;
     }
 
     bool statusHasError() const {
-        using namespace flagset;
-        return (m_deviceStatus & (Status::DeviceBusy | Status::CommandError));
+        return !is_null(m_deviceStatus & (Status::DeviceBusy | Status::CommandError));
     }
     bool statusNoError() const {
         return !statusHasError();
@@ -359,25 +378,25 @@ public:
     //! Checks if the last transmission succeeded.
     bool checkTransmitted()
     {
-        return testAndClearStatus(Status::DataTransmitted);
+        return testForStatusAndClear(Status::DataTransmitted);
     }
 
     //! Checks if an incoming message was received.
     bool checkReceived()
     {
-        return testAndClearStatus(Status::DataAvailable);
+        return testForStatusAndClear(Status::DataAvailable);
     }
 
     //! Returns true if TX FIFO is almost empty (clears the flag).
     bool isTxFifoAlmostEmpty()
     {
-        return testAndClearStatus(Status::FifoAlmostEmpty);
+        return testForStatusAndClear(Status::FifoAlmostEmpty);
     }
 
     //! Returns true if RX FIFO is almost full (clears the flag).
     bool isRxFifoAlmostFull()
     {
-        return testAndClearStatus(Status::FifoAlmostFull);
+        return testForStatusAndClear(Status::FifoAlmostFull);
     }
 
 
@@ -403,11 +422,11 @@ public:
 
 
     //! Check device status and clear the flag
-    bool testAndClearStatus(Status status)
+    bool testForStatusAndClear(Status status)
     {
         update();
 
-        if (testStatus(status)) {
+        if (hasStatus(status)) {
             clearStatus(status);
             return true;
         }
@@ -1181,7 +1200,6 @@ private:
     //! Read pending interrupts via FRR
     void updateStatus()
     {
-
         // FRR B: PH_PEND
         // FRR C: MODEM_PEND
         // FRR D: CHIP_PEND
@@ -1323,7 +1341,7 @@ private:
         return !lastCommandFailed();
     }
     bool lastCommandFailed() const {
-        return testStatus(Status::DeviceBusy);
+        return hasStatus(Status::DeviceBusy);
     }
 
 
@@ -1492,11 +1510,9 @@ private:
 
 private:
     void raiseStatus(Status v) {
-        using namespace flagset;
         m_deviceStatus |= v;
     }
     void clearStatus(Status v) {
-        using namespace flagset;
         m_deviceStatus &= ~v;
     }
     void clearStatus() {
@@ -1508,9 +1524,8 @@ private:
         else
             clearStatus(v);
     }
-    bool testStatus(Status status) const {
-        using namespace flagset;
-        return m_deviceStatus & status;
+    bool hasStatus(Status status) const {
+        return !is_null(m_deviceStatus & status);
     }
 
     void deviceBusy()
@@ -1530,7 +1545,7 @@ private:
 
     si4455_cmd_reply_union m_commandReply;
 
-    flagset::bitflag<Status> m_deviceStatus {Status::NoStatus};
+    Status m_deviceStatus {Status::NoStatus};
 
     uint8_t m_listeningChannel {0};
     //uint8_t m_transmittingChannel {0};

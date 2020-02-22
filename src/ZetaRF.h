@@ -20,7 +20,13 @@
 #include "configs/config433_variablelength_crc_preamble10_sync4_payload8.h"
 
 
-#include <cstdint>
+#include <stdint.h>
+
+#ifdef __AVR__
+#define CONSTEXPR inline
+#else
+#define CONSTEXPR constexpr
+#endif
 
 namespace ZetaRF
 {
@@ -55,7 +61,7 @@ namespace ZetaRF
         return !(a == b);
     }
 
-    constexpr ZetaRF::RadioState radioStateFromValue(uint8_t state) {
+    CONSTEXPR ZetaRF::RadioState radioStateFromValue(uint8_t state) {
         switch (state) {
             case 1: return ZetaRF::RadioState::Sleep;
             case 2: return ZetaRF::RadioState::SpiActive;
@@ -69,7 +75,7 @@ namespace ZetaRF
             default: return ZetaRF::RadioState::Invalid;
         }
     }
-    constexpr const char* radioStateText(ZetaRF::RadioState state) {
+    CONSTEXPR const char* radioStateText(ZetaRF::RadioState state) {
         switch (state) {
             case ZetaRF::RadioState::Sleep: return "Sleep";
             case ZetaRF::RadioState::SpiActive: return "SpiActive";
@@ -95,12 +101,12 @@ public:
         return m_radio.radioState();
     }
 
-    flagset::bitflag<ZetaRF::Status> status() const {
+    ZetaRF::Status status() const {
         return m_radio.status();
     }
 
     bool checkFor(ZetaRF::Status status) {
-        return m_radio.testAndClearStatus(status);
+        return m_radio.testForStatusAndClear(status);
     }
 
     bool isAlive() {
