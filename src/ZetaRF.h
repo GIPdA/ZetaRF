@@ -152,31 +152,31 @@ public:
 
     // ### PACKET SENDING METHODS ###
 
-    //! Send either fixed or variable length packet depending on radio config.
+    //! Send either fixed or variable length packet depending on radio config. Data is put in FIFO and set to send.
     //! For fixed length packet mode, if @a dataSize is less than the packet size, zeros are automatically appended.
-    bool sendPacket(uint8_t channel, uint8_t const* data, uint8_t dataSize, unsigned long timeout_ms = 100) {
+    bool sendPacket(uint8_t channel, uint8_t const* data, uint8_t dataSize, unsigned long timeoutForReady_ms = 100) {
         if (Config::VariableLengthPacketConfiguration)
-            return m_radio.sendVariableLengthPacket(channel, data, dataSize, timeout_ms);
+            return m_radio.sendVariableLengthPacket(channel, data, dataSize, timeoutForReady_ms);
         else
-            return m_radio.sendFixedLengthPacket(channel, data, dataSize, timeout_ms);
+            return m_radio.sendFixedLengthPacket(channel, data, dataSize, timeoutForReady_ms);
     }
 
-    //! Send fixed length packet, config length or user-set length is used. RX must be waiting for that length of packet.
+    //! Send fixed length packet, config length or user-set length is used. RX must be waiting for that length of packet. Data is put in FIFO and set to send.
     //! @a data must point to at least 'packet length' bytes.
-    bool sendFixedLengthPacket(uint8_t channel, uint8_t const* data, unsigned long timeout_ms = 100) {
-        return m_radio.sendFixedLengthPacket(channel, data, timeout_ms);
+    bool sendFixedLengthPacket(uint8_t channel, uint8_t const* data, unsigned long timeoutForReady_ms = 100) {
+        return m_radio.sendFixedLengthPacket(channel, data, timeoutForReady_ms);
     }
 
-    //! Send fixed length packet with specified length. RX must be waiting for that length of packet.
+    //! Send fixed length packet with specified length. RX must be waiting for that length of packet. Data is put in FIFO and set to send.
     //! If @a dataSize is less than the packet size, zeros are automatically appended.
-    bool sendFixedLengthPacket(uint8_t channel, uint8_t const* data, uint8_t dataSize, unsigned long timeout_ms = 100) {
-        return m_radio.sendFixedLengthPacket(channel, data, dataSize, timeout_ms);
+    bool sendFixedLengthPacket(uint8_t channel, uint8_t const* data, uint8_t dataSize, unsigned long timeoutForReady_ms = 100) {
+        return m_radio.sendFixedLengthPacket(channel, data, dataSize, timeoutForReady_ms);
     }
 
-    //! Send variable length packet.
-    bool sendVariableLengthPacket(uint8_t channel, uint8_t const* data, uint8_t length, unsigned long timeout_ms = 100) {
+    //! Send variable length packet. Data is put in FIFO and set to send.
+    bool sendVariableLengthPacket(uint8_t channel, uint8_t const* data, uint8_t length, unsigned long timeoutForReady_ms = 100) {
         static_assert(Config::VariableLengthPacketConfiguration, "Radio configuration does not support variable length packets.");
-        return m_radio.sendVariableLengthPacket(channel, data, length, timeout_ms);
+        return m_radio.sendVariableLengthPacket(channel, data, length, timeoutForReady_ms);
     }
 
 
