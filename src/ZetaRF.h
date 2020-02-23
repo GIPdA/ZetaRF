@@ -206,6 +206,9 @@ public:
         return m_radio.readVariableLengthPacket(data, maxByteCount, packetDataLength);
     }
 
+    uint8_t packetLength() const {
+        return m_radio.packetLength();
+    }
 
     bool startListeningOnChannel(uint8_t newChannel) {
         return m_radio.startListeningOnChannel(newChannel);
