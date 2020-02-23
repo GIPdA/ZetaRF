@@ -183,7 +183,7 @@ public:
     // ### PACKET RECEIVING METHODS ###
 
     //! Read either fixed or variable length packet depending on radio config
-    ZetaRF::ReadPacketResult readPacket(uint8_t* data, uint8_t byteCount) {
+    ZetaRF::ReadPacketResult readPacketTo(uint8_t* data, uint8_t byteCount) {
         if (Config::VariableLengthPacketConfiguration) {
             uint8_t packetDataLength {0};
             return m_radio.readVariableLengthPacket(data, byteCount, packetDataLength);
@@ -192,11 +192,16 @@ public:
             return m_radio.readFixedLengthPacket(data, byteCount);
     }
 
-    ZetaRF::ReadPacketResult readFixedLengthPacket(uint8_t* data, uint8_t byteCount) {
+    //! Read a packet with size set via beginWithPacketLengthOf(). @a data must point to a buffer large enough!
+    ZetaRF::ReadPacketResult readPacketTo(uint8_t* data) {
+        return readPacketTo(data, m_radio.packetLength());
+    }
+
+    ZetaRF::ReadPacketResult readFixedLengthPacketTo(uint8_t* data, uint8_t byteCount) {
         return m_radio.readFixedLengthPacket(data, byteCount);
     }
 
-    ZetaRF::ReadPacketResult readVariableLengthPacket(uint8_t* data, uint8_t maxByteCount, uint8_t& packetDataLength) {
+    ZetaRF::ReadPacketResult readVariableLengthPacketTo(uint8_t* data, uint8_t maxByteCount, uint8_t& packetDataLength) {
         static_assert(Config::VariableLengthPacketConfiguration, "Radio configuration does not support variable length packets.");
         return m_radio.readVariableLengthPacket(data, maxByteCount, packetDataLength);
     }
