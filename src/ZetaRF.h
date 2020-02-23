@@ -209,8 +209,12 @@ public:
         return m_radio.startListeningSinglePacketOnChannel(newChannel);
     }
 
-    bool checkReceived() {
-        return m_radio.checkReceived();
+    bool hasDataAvailble() {
+        return m_radio.hasDataAvailble();
+    }
+    unsigned int available() {
+        return m_radio.hasDataAvailble();
+    }
     }
 
     void resetRxFifo() {

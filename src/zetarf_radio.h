@@ -382,9 +382,9 @@ public:
     }
 
     //! Checks if an incoming message was received.
-    bool checkReceived()
+    bool hasDataAvailble()
     {
-        return testForStatusAndClear(Status::DataAvailable);
+        return hasStatus(Status::DataAvailable);
     }
 
     //! Returns true if TX FIFO is almost empty (clears the flag).
