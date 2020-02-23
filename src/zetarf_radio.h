@@ -69,8 +69,8 @@ public:
         DataTransmitted,
         DataAvailable,
         CrcError,
-        FifoAlmostEmpty,
-        FifoAlmostFull,
+        TxFifoAlmostEmpty,
+        RxFifoAlmostFull,
 
         // Modem Interrupt
         InvalidSync,
@@ -390,13 +390,13 @@ public:
     //! Returns true if TX FIFO is almost empty (clears the flag).
     bool isTxFifoAlmostEmpty()
     {
-        return testForStatusAndClear(Status::FifoAlmostEmpty);
+        return testForStatusAndClear(Status::TxFifoAlmostEmpty);
     }
 
     //! Returns true if RX FIFO is almost full (clears the flag).
     bool isRxFifoAlmostFull()
     {
-        return testForStatusAndClear(Status::FifoAlmostFull);
+        return testForStatusAndClear(Status::RxFifoAlmostFull);
     }
 
 
@@ -1254,12 +1254,12 @@ private:
 
         if (phPend & SI4455_CMD_GET_INT_STATUS_REP_TX_FIFO_ALMOST_EMPTY_PEND_BIT) {
             clearIT = true;
-            raiseStatus(Status::FifoAlmostEmpty);
+            raiseStatus(Status::TxFifoAlmostEmpty);
             debugln("Packet IT: TX FIFO Almost Empty");
         }
         if (phPend & SI4455_CMD_GET_INT_STATUS_REP_RX_FIFO_ALMOST_FULL_PEND_BIT) {
             clearIT = true;
-            raiseStatus(Status::FifoAlmostFull);
+            raiseStatus(Status::RxFifoAlmostFull);
             debugln("Packet IT: RX FIFO Almost Full");
         }
 
