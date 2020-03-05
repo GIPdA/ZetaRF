@@ -32,7 +32,11 @@ namespace ZetaRF
 {
     using RadioState = ZetaRFRadio::RadioState;
     using Status = ZetaRFRadio::Status;
+    using StatusFlags = ZetaRFRadio::StatusFlags;
     using ReadResult = ZetaRFRadio::ReadPacketResult;
+
+    using onEventCallback = ZetaRFRadio::onEventCallback; // -> void onZetaEvents(StatusFlags status) {}
+    using onDataReceivedCallback = ZetaRFRadio::onDataReceivedCallback; // -> void onZetaDataReceived() {}
 
     class ReadPacketResult {
         friend inline bool operator==(ReadPacketResult a, ReadPacketResult b);
@@ -93,30 +97,36 @@ namespace ZetaRF
 
 
 template <typename Config, class ...HalTypes>
-class ZetaRFImpl// : public ZetaRF
+class ZetaRFImpl
 {
 public:
     //! Current internal radio state
     ZetaRF::RadioState radioState() {
-        return m_radio.radioState();
+        return m_radio.radioStateViaFrr();
     }
 
-    ZetaRF::Status status() const {
-        return m_radio.status();
+    bool hasDataAvailble() const {
+        return m_radio.hasDataAvailable();
+    }
+    bool hasDataAvailble() {
+        return m_radio.hasDataAvailable();
+    }
+    bool available() const {
+        return hasDataAvailble();
+    }
+    bool available() {
+        return hasDataAvailble();
     }
 
-    bool checkFor(ZetaRF::Status status) {
-        return m_radio.testForStatusAndClear(status);
+
+    bool update() {
+        return m_radio.update();
     }
+
 
     bool isAlive() {
         return m_radio.isAlive();
     }
-
-    bool controlError() {
-        return m_radio.statusHasError();
-    }
-
 
     //!! Load radio config
     bool begin() {
@@ -138,8 +148,18 @@ public:
         return m_radio.beginWithConfigurationDataArray(Config::RadioConfigurationDataArray);
     }
 
-    bool update() {
-        return m_radio.update();
+
+    ZetaRF::StatusFlags events() const {
+        return m_radio.eventFlagsMask();
+    }
+    void setEvents(ZetaRF::StatusFlags events) {
+        m_radio.setEventFlagsMask(events);
+    }
+    void onEvent(ZetaRF::onEventCallback callback) {
+        m_radio.setEventCallback(callback);
+    }
+    void onDataReceivedCallback(ZetaRF::onDataReceivedCallback callback) {
+        m_radio.setDataReceivedCallback(callback);
     }
 
     //bool isNotResponding() const;
@@ -206,6 +226,7 @@ public:
         return m_radio.readVariableLengthPacket(data, maxByteCount, packetDataLength);
     }
 
+
     uint8_t packetLength() const {
         return m_radio.packetLength();
     }
@@ -217,12 +238,21 @@ public:
         return m_radio.startListeningSinglePacketOnChannel(newChannel);
     }
 
-    bool hasDataAvailble() {
-        return m_radio.hasDataAvailble();
+
+    //! Checks if there is enough space left in TX fifo for one packet
+    /*bool canSendOnePacket() {
+        //
+    }//*/
+
+    // Space left in TX FIFO
+    uint8_t bytesAvailableInTxFifo()
+    {
+        return m_radio.bytesAvailableInTxFifo();
     }
-    unsigned int available() {
-        return m_radio.hasDataAvailble();
-    }
+    // Bytes stored in RX FIFO
+    uint8_t bytesAvailableInRxFifo()
+    {
+        return m_radio.bytesAvailableInRxFifo();
     }
 
     void resetRxFifo() {
@@ -230,18 +260,17 @@ public:
     }
 
 
-    unsigned int readCurrentRssi()
+    uint8_t readCurrentRssi()
     {
-        auto rssi = m_radio.cmd_readModemStatus().CURR_RSSI;
+        uint8_t const rssi = m_radio.cmd_readModemStatus().CURR_RSSI;
         return m_radio.statusHasError() ? 0 : rssi;
     }
 
     //! Rssi value of the last received packet (reset upon entering RX).
     //! Valid only when using single packet listening mode, if you read it before restarting RX.
-    unsigned int readLatchedRssi()
+    uint8_t readLatchedRssi()
     {
-        auto rssi = m_radio.cmd_readModemStatus().LATCH_RSSI;
-        return m_radio.statusHasError() ? 0 : rssi;
+        return m_radio.readLatchedRssiViaFrr();
     }
 
 

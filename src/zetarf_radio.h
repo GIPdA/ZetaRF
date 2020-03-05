@@ -10,6 +10,7 @@
 
 #include <stdint.h>
 #include <stdarg.h>
+#include "flags/flags.hpp"
 
 //#define ZETARF_DEBUG_ON
 
@@ -50,41 +51,56 @@ class ZetaRFRadio
 public:
     enum class RadioState
     {
-        Invalid = 0,
-        Sleep,
-        SpiActive,
-        Ready,
-        Ready2,
-        TxTune,
-        RxTune,
-        Tx,
-        Rx
+        Invalid     = 0,
+        Sleep       = 1,
+        SpiActive   = 2,
+        Ready       = 3,
+        Ready2      = 4,
+        TxTune      = 5,
+        RxTune      = 6,
+        Tx          = 7,
+        Rx          = 8
     };
+    static const char* radioStateText(RadioState state) {
+        switch (state) {
+            case RadioState::Sleep: return "Sleep";
+            case RadioState::SpiActive: return "SpiActive";
+            case RadioState::Ready: return "Ready";
+            case RadioState::Ready2: return "Ready2";
+            case RadioState::TxTune: return "TxTune";
+            case RadioState::RxTune: return "RxTune";
+            case RadioState::Tx: return "Tx";
+            case RadioState::Rx: return "Rx";
 
-    enum class Status
+            default: return "Invalid";
+        }
+    }
+
+    enum class Status : uint32_t
     {
-        NoStatus = 0,
+        NoStatus                        = 0,
 
         // Packet Handler
-        DataTransmitted,
-        DataAvailable,
-        CrcError,
-        TxFifoAlmostEmpty,
-        RxFifoAlmostFull,
+        DataTransmitted                 = 1 << 1,
+        DataAvailable                   = 1 << 2,
+        CrcError                        = 1 << 3,
+        TxFifoAlmostEmpty               = 1 << 4,
+        RxFifoAlmostFull                = 1 << 5,
 
         // Modem Interrupt
-        InvalidSync,
-        InvalidPreamble,
-        DetectedPreamble,
-        DetectedSync,
-        LatchedRssi,
+        InvalidSync                     = 1 << 6,
+        InvalidPreamble                 = 1 << 7,
+        DetectedPreamble                = 1 << 8,
+        DetectedSync                    = 1 << 9,
+        LatchedRssi                     = 1 << 10,
 
         // Chip Interrupt
-        FifoUnderflowOrOverflowError,
-        CommandError,
+        FifoUnderflowOrOverflowError    = 1 << 11,
+        CommandError                    = 1 << 12,
 
-        DeviceBusy
+        DeviceBusy                      = 1 << 13
     };
+    using StatusFlags = flags::flags<Status>;
 
     enum class ReadPacketResult
     {
@@ -95,42 +111,15 @@ public:
         RequestFailed,
         Success
     };
+
+    typedef void(*onEventCallback)(StatusFlags status);
+    typedef void(*onDataReceivedCallback)();
 };
 
-constexpr ZetaRFRadio::Status operator |(ZetaRFRadio::Status left, ZetaRFRadio::Status right) noexcept
-{
-    return static_cast<ZetaRFRadio::Status>(static_cast<uint32_t>(left) | static_cast<uint32_t>(right));
-}
-inline ZetaRFRadio::Status operator |=(ZetaRFRadio::Status& left, ZetaRFRadio::Status right) noexcept
-{
-    left = left | right;
-    return left;
-}
-constexpr ZetaRFRadio::Status operator &(ZetaRFRadio::Status left, ZetaRFRadio::Status right) noexcept
-{
-  return static_cast<ZetaRFRadio::Status>(static_cast<uint32_t>(left) & static_cast<uint32_t>(right));
-}
-inline ZetaRFRadio::Status operator &=(ZetaRFRadio::Status& left, ZetaRFRadio::Status right) noexcept
-{
-    left = left & right;
-    return left;
-}
-constexpr ZetaRFRadio::Status operator ^(ZetaRFRadio::Status left, ZetaRFRadio::Status right) noexcept
-{
-  return static_cast<ZetaRFRadio::Status>(static_cast<uint32_t>(left) ^ static_cast<uint32_t>(right));
-}
-constexpr ZetaRFRadio::Status operator ~(ZetaRFRadio::Status e) noexcept
-{
-    return static_cast<ZetaRFRadio::Status>(~static_cast<uint32_t>(e));
-}
-constexpr bool is_null(ZetaRFRadio::Status e) noexcept
-{
-    return static_cast<uint32_t>(e) == 0;
-}
+ALLOW_FLAGS_FOR_ENUM(ZetaRFRadio::Status)
 
-/*!
- * ZetaRF Radio Device Interface
- */
+
+//! ZetaRF Radio Device Interface
 template<class Hal>
 class ZetaRFRadioImpl : public ZetaRFRadio
 {
@@ -139,29 +128,47 @@ class ZetaRFRadioImpl : public ZetaRFRadio
 public:
     using RadioState = ZetaRFRadio::RadioState;
     using Status = ZetaRFRadio::Status;
+    using StatusFlags = ZetaRFRadio::StatusFlags;
     using ReadPacketResult = ZetaRFRadio::ReadPacketResult;
+    using onEventCallback = ZetaRFRadio::onEventCallback;
+    using onDataReceivedCallback = ZetaRFRadio::onDataReceivedCallback;
 
     //! Current device status
-    Status status() const {
-        return m_deviceStatus;
+    StatusFlags const& status() const {
+        return m_status;
     }
 
-    bool statusHasError() const {
-        return !is_null(m_deviceStatus & (Status::DeviceBusy | Status::CommandError));
+    bool statusHasErrors() const {
+        return m_status & (Status::DeviceBusy | Status::CommandError);
     }
     bool statusNoError() const {
-        return !statusHasError();
+        return !statusHasErrors();
+    }
+
+    StatusFlags const& eventFlagsMask() const {
+        return m_eventFlagsMask;
+    }
+    void setEventFlagsMask(StatusFlags mask) {
+        return m_eventFlagsMask = mask;
+    }
+
+    void setEventCallback(onEventCallback callback) {
+        m_eventCallback = callback;
+    }
+    void setDataReceivedCallback(onDataReceivedCallback callback) {
+        m_dataReceivedCallback = callback;
     }
 
 
     //! Begin the library
     bool beginWithConfigurationDataArray(uint8_t const* configArray)
     {
+        _clearStatus();
         hal.initialize();
 
         powerUp();
 
-        int retryCount = 10;
+        int retryCount = 5;
         // Load radio configuration
         while (!initialize(configArray) && (retryCount--)) {
             // Wait and retry
@@ -169,25 +176,27 @@ public:
             powerUp();
         }
 
-        if (retryCount <= 0)
+        if (retryCount <= 0) {
+            debugln("Failed to initialize the radio module!");
             return false;
+        }
 
         cmd_clearAllPendingInterrupts();
 
         // Configure FRR
+        // ! DO NOT CHANGE ! It is used by the lib.
         cmd_setProperties(0x02, // Group ID
                           4,    // 4 registers to set
                           0x00, // Start at index 0 (FRR A)
                           SI4455_PROP_FRR_CTL_A_MODE_FRR_A_MODE_ENUM_CURRENT_STATE,
+                          SI4455_PROP_FRR_CTL_B_MODE_FRR_B_MODE_ENUM_LATCHED_RSSI,
                           SI4455_PROP_FRR_CTL_B_MODE_FRR_B_MODE_ENUM_INT_PH_PEND,
-                          SI4455_PROP_FRR_CTL_C_MODE_FRR_C_MODE_ENUM_INT_MODEM_PEND,
                           SI4455_PROP_FRR_CTL_D_MODE_FRR_D_MODE_ENUM_INT_CHIP_PEND);
 
         if (lastCommandFailed())
             return false;
 
-        clearStatus();
-        updateStatus();
+        _clearStatus();
         return statusNoError();
     }
 
@@ -195,7 +204,7 @@ public:
     bool update()
     {
         if (hal.isIrqAsserted()) {
-            updateStatus();
+            readInterruptsToStatus();
             return true;
         }
         return false;
@@ -203,7 +212,7 @@ public:
 
 
     /*!
-     * Send data to @a channel.
+     * Send data to @a channel. Returns to previous radio state after TX complete.
      * Notes when using variable length packets:
      *  - First data byte must be the payload length field, and its value must be the data length (ignoring this extra byte).
      *  - e.g. To send 5 bytes of data, @a data buffer must contains: [5, data1, ... , data5] and @a length must be 6.
@@ -220,13 +229,11 @@ public:
         if (!data || dataSize == 0)
             return false;
 
-        cmd_clearAllPendingInterrupts(); // MAYBE: needed?
-
-        if (statusHasError())
-            return false;
-
         if (!waitReadyToSendPacket(timeout_ms))
             return false;
+
+        // TxComplete value should not be 7 (TX state) as waitReadyToSendPacket checks for that.
+        uint8_t const txCompleteState = static_cast<uint8_t>(radioStateViaFrr());
 
         // Fill the TX fifo with data
         cmd_writeTxFifo(data, min(m_packetLength, dataSize));
@@ -235,8 +242,10 @@ public:
         if (m_packetLength > dataSize)
             cmd_writeTxFifoWithZeros(m_packetLength-dataSize);
 
-        // Start sending packet on channel, return to RX after transmit
-        cmd_startTx(channel, 0x80, m_packetLength);
+        // Start sending packet on channel, return to previous state after transmit
+        cmd_startTx(channel,
+                    txCompleteState << SI4455_CMD_START_TX_ARG_TXCOMPLETE_STATE_LSB,
+                    m_packetLength);
 
         return statusNoError();
     }
@@ -255,13 +264,11 @@ public:
         if (!data || length == 0)
             return false;
 
-        cmd_clearAllPendingInterrupts(); // MAYBE: needed?
-
-        if (statusHasError())
-            return false;
-
         if (!waitReadyToSendPacket(timeout_ms))
             return false;
+
+        // TxComplete value should not be 7 (TX state) as waitReadyToSendPacket checks for that.
+        uint8_t const txCompleteState = static_cast<uint8_t>(radioStateViaFrr());
 
         // Write the varible length field
         cmd_writeTxFifo(&length, 1);
@@ -270,15 +277,15 @@ public:
         cmd_writeTxFifo(data, length);
 
         // Start sending packet on channel, return to RX after transmit
-        cmd_startTx(channel, 0x80, length+1);
+        cmd_startTx(channel,
+                    txCompleteState << SI4455_CMD_START_TX_ARG_TXCOMPLETE_STATE_LSB,
+                    length+1);
 
         return statusNoError();
     }
 
 
-    /*!
-     * Read packet from Rx FIFO.
-     */
+    //! Read packet from Rx FIFO.
     ReadPacketResult readFixedLengthPacket(uint8_t* data, uint8_t byteCount)
     {
         if (!data)
@@ -293,9 +300,7 @@ public:
         return readPacket(fi, data, byteCount);
     }
 
-    /*!
-     * Read variable length packet from Rx FIFO.
-     */
+    //! Read variable length packet from Rx FIFO.
     ReadPacketResult readVariableLengthPacket(uint8_t* data, uint8_t maxByteCount, uint8_t& packetDataLength)
     {
         if (!data)
@@ -328,9 +333,15 @@ public:
     }
 
 
-    //! Current internal radio state
-    RadioState radioState() {
+    //! Current internal radio state via FRR
+    RadioState radioStateViaFrr() {
         return static_cast<RadioState>(cmd_readFrrA().FRR_A_VALUE & 0x0F);
+    }
+
+    //! Latched RSSI value via FRR
+    uint8_t readLatchedRssiViaFrr()
+    {
+        return cmd_readFrrB().FRR_B_VALUE;
     }
 
     uint8_t packetLength() const {
@@ -374,29 +385,38 @@ public:
         return startListening(m_listeningChannel, m_packetLength);
     }
 
-
-    //! Checks if the last transmission succeeded.
-    bool checkTransmitted()
+    //! Checks if an incoming message was received. Updated in readPacket and via IRQs
+    bool hasDataAvailable() const
     {
-        return testForStatusAndClear(Status::DataTransmitted);
+        return m_dataAvailable;
+    }
+    //! In non-const mode, check for interrupts.
+    bool hasDataAvailable()
+    {
+        if (m_dataAvailable)
+            return true;
+
+        uint8_t const phPending = cmd_readFrrC().FRR_C_VALUE;
+        if (phPending & SI4455_CMD_GET_INT_STATUS_REP_PACKET_RX_PEND_BIT) {
+            // Clear PACKET_RX pending interrupt
+            cmd_clearPendingInterrupts(~SI4455_CMD_GET_INT_STATUS_ARG_PACKET_RX_PEND_CLR_BIT, 0xff, 0xff);
+            processPacketRxInterrupt();
+        }//*/
+        return m_dataAvailable;
     }
 
-    //! Checks if an incoming message was received.
-    bool hasDataAvailble()
+    // Space left in TX FIFO
+    uint8_t bytesAvailableInTxFifo()
     {
-        return hasStatus(Status::DataAvailable);
+        Si4455_FifoInfo const& fi = cmd_readFifoInfo();
+        return fi.TX_FIFO_SPACE;
     }
 
-    //! Returns true if TX FIFO is almost empty (clears the flag).
-    bool isTxFifoAlmostEmpty()
+    // Bytes stored in RX FIFO
+    uint8_t bytesAvailableInRxFifo()
     {
-        return testForStatusAndClear(Status::TxFifoAlmostEmpty);
-    }
-
-    //! Returns true if RX FIFO is almost full (clears the flag).
-    bool isRxFifoAlmostFull()
-    {
-        return testForStatusAndClear(Status::RxFifoAlmostFull);
+        Si4455_FifoInfo const& fi = cmd_readFifoInfo();
+        return fi.RX_FIFO_COUNT;
     }
 
 
@@ -408,7 +428,7 @@ public:
      */
     bool isAlive()
     {
-        cleanCommandBuffer();
+        _cleanCommandBuffer();
         Si4455_DeviceState const& cs = cmd_requestDeviceState();
         return (cs.CURR_STATE != 0) && (cs.CURR_STATE != 0xFF) && lastCommandSucceeded();// && cs.CURRENT_CHANNEL == m_listeningChannel);
     }
@@ -421,31 +441,13 @@ public:
     }
 
 
-    //! Check device status and clear the flag
-    bool testForStatusAndClear(Status status)
-    {
-        update();
-
-        if (hasStatus(status)) {
-            clearStatus(status);
-            return true;
-        }
-        return false;
-    }
-
-    void clear(Status status)
-    {
-        clearStatus(status);
-    }
-
-
     //! Hardware reset the chip using the shutdown pin
     void hardwareReset()
     {
         // Put radio in shutdown, wait then release
         hal.putInShutdown();
         delay(10);
-        clearStatus();
+        _clearStatus();
         hal.releaseFromShutdown();
         delay(10);
     }
@@ -453,7 +455,7 @@ public:
     void holdInReset()
     {
         hal.putInShutdown();
-        clearStatus();
+        _clearStatus();
     }
 
     void releaseFromReset()
@@ -462,9 +464,7 @@ public:
     }
 
 
-
-public:
-    // #### EZ RADIO COMMANDS ####
+public: // #### EZ RADIO COMMANDS ####
 
     //! Reads data byte(s) from the current position in RX FIFO. Returns false on error.
     //! Doesn't need CTS
@@ -558,7 +558,6 @@ public:
     }
 
 
-
     //! Returns the interrupt status of ALL the possible interrupt events (both STATUS and PENDING).
     //! Optionally, it may be used to clear latched (PENDING) interrupt events (set bit to 0 in the corresponding clear mask argument).
     Si4455_InterruptStatus const& cmd_readInterruptStatus(uint8_t pendingPacketHandlerIntsClearMask, uint8_t pendingModemIntsClearMask, uint8_t pendingChipIntsClearMask)
@@ -572,10 +571,6 @@ public:
 
         sendCommandAndReadResponse(buffer, SI4455_CMD_ARG_COUNT_GET_INT_STATUS,
                                    m_commandReply.RAW, SI4455_CMD_REPLY_COUNT_GET_INT_STATUS);
-
-        //processPacketHandlerInterruptPending(m_commandReply.GET_INT_STATUS.PH_PEND);
-        //processModemInterruptPending(m_commandReply.GET_INT_STATUS.MODEM_PEND);
-        //processChipInterruptPending(m_commandReply.GET_INT_STATUS.CHIP_PEND);
 
         return m_commandReply.GET_INT_STATUS;
 
@@ -599,9 +594,21 @@ public:
     {
         uint8_t const buffer[] = {
             SI4455_CMD_ID_GET_INT_STATUS,
+            /*0x00, // Don't send parameters = IT clear
             0x00,
-            0x00,
-            0x00
+            0x00//*/
+        };
+
+        sendCommand(buffer, SI4455_CMD_ARG_COUNT_GET_INT_STATUS-3);
+    }
+
+    void cmd_clearPendingInterrupts(uint8_t pendingPacketHandlerIntsClearMask, uint8_t pendingModemIntsClearMask, uint8_t pendingChipIntsClearMask)
+    {
+        uint8_t const buffer[] = {
+            SI4455_CMD_ID_GET_INT_STATUS,
+            pendingPacketHandlerIntsClearMask,
+            pendingModemIntsClearMask,
+            pendingChipIntsClearMask
         };
 
         sendCommand(buffer, SI4455_CMD_ARG_COUNT_GET_INT_STATUS);
@@ -635,7 +642,6 @@ public:
         // Si4455Cmd.FRR_B_READ.FRR_D_VALUE = radioCmd[2];
         // Si4455Cmd.FRR_B_READ.FRR_A_VALUE = radioCmd[3];
     }
-
 
     //! Reads the fast response registers (FRR) starting with FRR_C.
     Si4455_FrrC const& cmd_readFrrC(uint8_t registersToRead = 1)
@@ -1098,19 +1104,25 @@ private:
         return writeData(SI4455_CMD_ID_WRITE_TX_FIFO, ezConfigArray, count);
     }
 
-
     bool waitReadyToSendPacket(unsigned long timeout_ms = 100)
     {
+        if (!waitForClearToSend(timeout_ms))
+            return false;
+
         // Wait for the device to be ready to send a packet
         unsigned long const t { millis() };
         RadioState s {RadioState::Invalid};
         do {
-            s = radioState();
+            s = radioStateViaFrr();
 
-            if ((millis()-t) > timeout_ms)
+            if ((millis()-t) > timeout_ms) {
+                //debug("Timeout! "); debugln(radioStateText(s));
                 return false;
+            }
+            //delay(1);
+            delayMicroseconds(200);
 
-        } while ((s == RadioState::Tx) || (s == RadioState::TxTune)); // Goes out of Tx/TxTune when packet is sent
+        } while ((s == RadioState::Tx) || (s == RadioState::TxTune) || (s == RadioState::Invalid)); // Goes out of Tx/TxTune when packet is sent
 
         return statusNoError();
     }
@@ -1129,15 +1141,9 @@ private:
             return ReadPacketResult::NotEnoughDataInFifo;
         }
 
-        clearStatus(Status::DataAvailable);
-
-        // Read FIFO
         cmd_readRxFifo(data, byteCount);
 
-        if (dataRemaining)
-            raiseStatus(Status::DataAvailable);
-
-        updateStatus();
+        m_dataAvailable = dataRemaining;
 
         return statusNoError() ? ReadPacketResult::Success : ReadPacketResult::RequestFailed;
     }
@@ -1152,9 +1158,6 @@ private:
         debug(channel);
         debug(" with packet size ");
         debugln(packetLength);
-
-        clearStatus();
-        cmd_clearAllPendingInterrupts();
 
         // Start Receiving packet on channel, START immediately, Packet n bytes long
         cmd_startRx(channel, 0, packetLength,
@@ -1175,9 +1178,6 @@ private:
         debug(" with packet size ");
         debugln(packetLength);
 
-        clearStatus();
-        cmd_clearAllPendingInterrupts();
-
         // Start Receiving packet on channel, START immediately, Packet n bytes long
         cmd_startRx(channel, 0, packetLength,
                     SI4455_CMD_START_RX_ARG_RXTIMEOUT_STATE_ENUM_RX,
@@ -1187,151 +1187,118 @@ private:
         return lastCommandSucceeded();
     }
 
-
-    void readAndProcessPendingInterrupts()
+    //! Process and clear pending interrupts
+    void readInterruptsToStatus()
     {
-        Si4455_InterruptStatus const& is {cmd_readInterruptStatus(0,0,0)}; // Read and clear all pending interrupts
-
-        processPacketHandlerInterruptPending(is.PH_PEND);
-        processModemInterruptPending(is.MODEM_PEND);
-        processChipInterruptPending(is.CHIP_PEND);
-    }
-
-    //! Read pending interrupts via FRR
-    void updateStatus()
-    {
-        // FRR B: PH_PEND
-        // FRR C: MODEM_PEND
-        // FRR D: CHIP_PEND
-        Si4455_FrrB const& frrb = cmd_readFrrB(3);
+        Si4455_InterruptStatus const& is { cmd_readAndClearInterruptStatus() };
 
         if (lastCommandFailed())
             return;
 
-        //clearStatus();
+        processPacketHandlerInterruptPending(is.PH_PEND);
+        processModemInterruptPending(is.MODEM_PEND);
+        processChipInterruptPending(is.CHIP_PEND);
 
-        bool clearIT {false};
-        clearIT |= processPacketHandlerInterruptPending(frrb.FRR_B_VALUE);
-        clearIT |= processModemInterruptPending(frrb.FRR_C_VALUE);
-        clearIT |= processChipInterruptPending(frrb.FRR_D_VALUE);
+        if (m_dataReceivedCallback && (m_status & Status::DataAvailable)) {
+            m_dataReceivedCallback();
+            _clearStatus(Status::DataAvailable);
+        }
 
-//#ifdef ZETARF_DEBUG_ON
-//        cmd_clearAllPendingInterrupts();
-//#else
-        if (clearIT)
-            cmd_clearAllPendingInterrupts();
-//#endif
+        if (m_eventCallback && (m_status & m_eventFlagsMask)) {
+            m_eventCallback(m_status & m_eventFlagsMask);
+            m_status &= ~m_eventFlagsMask; // Clear flags
+        }
 
-        // TODO: check how to implement properly this auto-recovery and if it is really needed
-        //if (m_deviceStatus & (CommandError|CrcError)) // auto recovery
-          //  startListening();
+        m_status.clear();
+        /*m_status &= ( Status::CrcError 
+                    | Status::TxFifoAlmostEmpty | Status::RxFifoAlmostFull
+                    | Status::InvalidSync | Status::InvalidPreamble | Status::DetectedPreamble | Status::DetectedSync
+                    | Status::LatchedRssi
+                    | Status::FifoUnderflowOrOverflowError);//*/
     }
 
     //! Process Packet Handler interrupts
-    //! @return true to clear interrupts, false otherwise
-    bool processPacketHandlerInterruptPending(uint8_t phPend)
+    void processPacketHandlerInterruptPending(uint8_t phPend)
     {
-        bool clearIT {false};
-
         if (phPend & SI4455_CMD_GET_INT_STATUS_REP_PACKET_SENT_PEND_BIT) {
-            clearIT = true;
-            raiseStatus(Status::DataTransmitted);
+            _raiseStatus(Status::DataTransmitted);
             debugln("Packet IT: Data Transmitted");
         }
+
         if (phPend & SI4455_CMD_GET_INT_STATUS_REP_PACKET_RX_PEND_BIT) {
-            clearIT = true;
-            // @todo Add circular buffer?
-            raiseStatus(Status::DataAvailable);
-            debugln("Packet IT: Data Available");
+            processPacketRxInterrupt();
         }
 
         if (phPend & SI4455_CMD_GET_INT_STATUS_REP_CRC_ERROR_PEND_BIT) {
-            clearIT = true;
             cmd_resetRxFifo(); // MAYBE: leave that choice to the user?
-            raiseStatus(Status::CrcError);
+            _raiseStatus(Status::CrcError);
             debugln("Packet IT: CRC Error");
         }
 
         if (phPend & SI4455_CMD_GET_INT_STATUS_REP_TX_FIFO_ALMOST_EMPTY_PEND_BIT) {
-            clearIT = true;
-            raiseStatus(Status::TxFifoAlmostEmpty);
+            _raiseStatus(Status::TxFifoAlmostEmpty);
             debugln("Packet IT: TX FIFO Almost Empty");
         }
         if (phPend & SI4455_CMD_GET_INT_STATUS_REP_RX_FIFO_ALMOST_FULL_PEND_BIT) {
-            clearIT = true;
-            raiseStatus(Status::RxFifoAlmostFull);
+            _raiseStatus(Status::RxFifoAlmostFull);
             debugln("Packet IT: RX FIFO Almost Full");
         }
-
-        return clearIT;
+    }
+    void processPacketRxInterrupt()
+    {
+        // @todo Add circular buffer?
+        _raiseStatus(Status::DataAvailable);
+        m_dataAvailable = true;
+        debugln("Packet IT: Data Available");
     }
 
     //! Process Modem interrupts
-    //! @return true to clear interrupts, false otherwise
-    bool processModemInterruptPending(uint8_t modemPend)
+    void processModemInterruptPending(uint8_t modemPend)
     {
-        bool clearIT {false};
-
         if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_INVALID_SYNC_PEND_BIT) {
-            clearIT = true;
-            raiseStatus(Status::InvalidSync);
+            _raiseStatus(Status::InvalidSync);
             //debugln("Modem IT: Invalid Sync");
         }
         if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_INVALID_PREAMBLE_PEND_BIT) {
-            clearIT = true;
-            raiseStatus(Status::InvalidPreamble);
+            _raiseStatus(Status::InvalidPreamble);
             //debugln("Modem IT: Invalid Preamble");
         }
 
         if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_PREAMBLE_DETECT_PEND_BIT) {
-            clearIT = true;
-            raiseStatus(Status::DetectedPreamble);
+            _raiseStatus(Status::DetectedPreamble);
             //debugln("Modem IT: Detected Preamble");
         }
         if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_SYNC_DETECT_PEND_BIT) {
-            clearIT = true;
-            raiseStatus(Status::DetectedSync);
+            _raiseStatus(Status::DetectedSync);
             //debugln("Modem IT: Detected Sync");
         }
 
         if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_RSSI_PEND_BIT) {
-            clearIT = true;
-            raiseStatus(Status::LatchedRssi);
+            _raiseStatus(Status::LatchedRssi);
             debugln("Modem IT: RSSI Latched");
         }
-
-        return clearIT;
     }
 
     //! Process Chip interrupts
-    //! @return true to clear interrupts, false otherwise
-    bool processChipInterruptPending(uint8_t chipPend)
+    void processChipInterruptPending(uint8_t chipPend)
     {
-        bool clearIT {false};
-
         if (chipPend & SI4455_CMD_GET_INT_STATUS_REP_FIFO_UNDERFLOW_OVERFLOW_ERROR_PEND_BIT) {
-            clearIT = true;
             cmd_resetRxFifo(); // MAYBE: leave that choice to the user?
-            raiseStatus(Status::FifoUnderflowOrOverflowError);
+            _raiseStatus(Status::FifoUnderflowOrOverflowError);
             debugln("Chip IT: FIFO Underflow/Overflow");
         }
 
         if (chipPend & SI4455_CMD_GET_INT_STATUS_REP_CMD_ERROR_PEND_BIT) {
-            clearIT = true;
-            raiseStatus(Status::CommandError);
+            _raiseStatus(Status::CommandError);
             debugln("Chip IT: Command Error");
         }
 
         if (chipPend & SI4455_CMD_GET_INT_STATUS_REP_STATE_CHANGE_PEND_BIT) {
-            //clearIT = true;
             //debugln("Chip IT: State Change");
         }
         if (chipPend & SI4455_CMD_GET_INT_STATUS_REP_CHIP_READY_PEND_BIT) {
-            //clearIT = true;
             debugln("Chip IT: Chip Ready");
         }
-
-        return clearIT;
     }
 
 
@@ -1341,7 +1308,7 @@ private:
         return !lastCommandFailed();
     }
     bool lastCommandFailed() const {
-        return hasStatus(Status::DeviceBusy);
+        return m_status.has(Status::DeviceBusy);
     }
 
 
@@ -1456,7 +1423,6 @@ private:
 
     //! Waits for CTS to be high. Returns false if timeout occured.
     //! Check CTS via SPI command, holds SPI transaction if clear to send.
-    //template <typename Hal_ = Hal, typename std::enable_if<!Hal_::HasHardwareClearToSend>>
     template<typename Hal_ = Hal,
          typename = std::enable_if_t<
             !Hal_::HasHardwareClearToSend
@@ -1473,20 +1439,20 @@ private:
 
             if ((millis()-t) > timeout_ms) {
                 hal.endSpiTransaction();
-                deviceBusy();
+                _deviceBusy();
                 return false;
             }
 
+            delayMicroseconds(100); // MAYBE: needed?
         } while (ctsVal != 0xFF); // Clear to send when 0xFF
 
         // Holds SPI transaction
-        deviceReady();
+        _deviceReady();
         return true;
     }
 
     //! Waits for CTS to be high. Returns false if timeout occured.
-    //! Uses Hardware CTS I/O.
-    //template <typename T = typename std::enable_if<Hal::HasHardwareClearToSend>::type>
+    //! Uses Hardware CTS I/O if available in HAL.
     template<typename Hal_ = Hal,
          typename = std::enable_if_t<
             Hal_::HasHardwareClearToSend
@@ -1497,57 +1463,58 @@ private:
         while (!hal.isClearToSend()) {
             // Wait with timeout...
             if ((millis()-t) > timeout_ms) {
-                deviceBusy();
+                _deviceBusy();
                 return false;
             }
 
             delayMicroseconds(100);
         }
-        deviceReady();
+        _deviceReady();
         return true;
     }
 
 
 private:
-    void raiseStatus(Status v) {
-        m_deviceStatus |= v;
+    inline void _raiseStatus(Status v) {
+        m_status |= v;
     }
-    void clearStatus(Status v) {
-        m_deviceStatus &= ~v;
+    inline void _clearStatus(Status v) {
+        m_status &= ~v;
     }
-    void clearStatus() {
-        m_deviceStatus = Status::NoStatus;
-    }
-    void setStatus(Status v, bool enable) {
-        if (enable)
-            raiseStatus(v);
-        else
-            clearStatus(v);
-    }
-    bool hasStatus(Status status) const {
-        return !is_null(m_deviceStatus & status);
+    inline void _clearStatus() {
+        m_status = Status::NoStatus;
     }
 
-    void deviceBusy()
+    inline void _deviceBusy()
     {
-        raiseStatus(Status::DeviceBusy);
+        _raiseStatus(Status::DeviceBusy);
     }
-    void deviceReady()
+    inline void _deviceReady()
     {
-        clearStatus(Status::DeviceBusy);
+        _clearStatus(Status::DeviceBusy);
     }
 
     // Write zeros in command buffer
-    void cleanCommandBuffer() {
+    void _cleanCommandBuffer() {
         memset(m_commandReply.RAW, 0, 16);
     }
 
 
     si4455_cmd_reply_union m_commandReply;
 
-    Status m_deviceStatus {Status::NoStatus};
+    flags::flags<Status> m_status {Status::NoStatus};
 
     uint8_t m_listeningChannel {0};
     //uint8_t m_transmittingChannel {0};
     uint8_t m_packetLength {0};
+    bool m_dataAvailable {false};
+
+    StatusFlags m_eventFlagsMask {
+              Status::CrcError | Status::CommandError
+            | Status::DataTransmitted | Status::DataAvailable
+            | Status::TxFifoAlmostEmpty | Status::RxFifoAlmostFull
+            | Status::LatchedRssi
+            | Status::FifoUnderflowOrOverflowError };
+    onEventCallback m_eventCallback {nullptr};
+    onDataReceivedCallback m_dataReceivedCallback {nullptr};
 };
