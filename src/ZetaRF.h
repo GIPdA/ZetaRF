@@ -459,23 +459,26 @@ private:
 
     bool waitReadyToSendPacket(unsigned long timeout_ms)
     {
-        if (!m_radio.waitForClearToSend(timeout_ms))
+        if (!m_radio.waitForClearToSend(timeout_ms)) {
+            Serial.println("Wait CTS failed");
             return false;
+        }
 
         // Wait for the device to be ready to send a packet
         unsigned long const t { millis() };
-        RadioState s {RadioState::Invalid};
-        do {
-            s = radioState();
-
+        RadioState s { radioState() };
+        // Goes out of Tx/TxTune when packet is sent
+        while ((s == RadioState::Tx) || (s == RadioState::TxTune) || (s == RadioState::Invalid)) {
             if ((millis()-t) > timeout_ms || s >= RadioState::Unknown) {
                 //debug("Timeout! "); debugln(radioStateText(s));
                 return false;
             }
-            delay(1);
-            //delayMicroseconds(200);
 
-        } while ((s == RadioState::Tx) || (s == RadioState::TxTune) || (s == RadioState::Invalid)); // Goes out of Tx/TxTune when packet is sent
+            //delay(1);
+            delayMicroseconds(200);
+
+            s = radioState();
+        }
 
         return true;//m_radio.succeeded();
     }
