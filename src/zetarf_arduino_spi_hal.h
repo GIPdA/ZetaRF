@@ -79,8 +79,6 @@ public:
 				endSpiTransaction();
 				return false;
 			}
-
-			//delayMicroseconds(100); // MAYBE: needed?
 		} while (ctsVal != 0xFF); // Clear to send when 0xFF
 
 		// Hold SPI transaction
@@ -91,6 +89,7 @@ public:
 	{
         m_inSpiTransaction = true;
         digitalWrite(ChipSelect_pin, LOW);
+        //delayMicroseconds(1);
         SPI.beginTransaction(ZETARF_SPI_SETTINGS);
     }
 	void resumeOrBeginSpiTransaction()

@@ -216,15 +216,15 @@ public:
 	}
 
 	//! Switches to TX state and starts transmission of a packet.
-	void startTx(uint8_t channel, uint8_t condition, uint16_t length)
+	void startTx(uint8_t channel, uint8_t txCompleteState, bool retransmit, uint16_t length)
 	{
 		const uint8_t buffer[] = {
 			SI4455_CMD_ID_START_TX,
 			channel,
-			condition,
-			(uint8_t)(length >> 8),
-			(uint8_t)(length),
-			0,
+			uint8_t(((txCompleteState&0x0F) << SI4455_CMD_START_TX_ARG_TXCOMPLETE_STATE_LSB)
+			        | (retransmit ? (1 << SI4455_CMD_START_TX_ARG_RETRANSMIT_LSB) : 0)),
+			uint8_t((length&0x1FFF) >> 8),
+			uint8_t(length)
 		};
 
 		sendCommand(buffer, SI4455_CMD_ARG_COUNT_START_TX);

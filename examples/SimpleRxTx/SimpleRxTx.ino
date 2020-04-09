@@ -2,7 +2,7 @@
  * Zeta RF v2 Getting Started Code Example.
  * Basic example on how to send messages back and forth between two modules using fixed size packets.
  *
- * Usage: write this sample on both boards and send text over serial!
+ * Usage: write this sample on both boards and chat over serial!
  */
 
 #include <ZetaRF.h>
@@ -20,14 +20,14 @@ char data[ZetaRFPacketLength] = "Hello ";
 void setup()
 {
   Serial.begin(115200);
-  while (!Serial); // Might wait for actual serial terminal to connect when USB
+  while (!Serial); // Might wait for actual serial terminal to connect when over USB
   
   Serial.println("Starting Zeta TxRx...");
 
   // Initialize Zeta module with a specific packet size
   if (!zeta.beginWithPacketLengthOf(ZetaRFPacketLength)) {
   //old- if (!zeta.begin(4, ZetaRFPacketLength)) {
-    Serial.println(F("Zeta begin failed"));
+    Serial.println(F("ZetaRF begin failed. Check wiring?"));
     while(true);
   }
 
@@ -36,7 +36,7 @@ void setup()
   //old- const Si4455_PartInfo &pi = zeta.readPartInfo();
   Serial.println("----------");
   Serial.print("Chip rev: "); Serial.println(pi.CHIPREV);
-  Serial.print("Part    : "); Serial.println(pi.PART.U16);
+  Serial.print("Part    : "); Serial.println(pi.PART.U16, HEX);
   Serial.print("PBuild  : "); Serial.println(pi.PBUILD);
   Serial.print("ID      : "); Serial.println(pi.ID.U16);
   Serial.print("Customer: "); Serial.println(pi.CUSTOMER);
@@ -44,7 +44,7 @@ void setup()
   Serial.print("Bond    : "); Serial.println(pi.BOND);
   Serial.print('\n');
 
-  EZRadioReply::FuncInfo const& fi = zeta.readFunctionRevisionInformation();
+  /*EZRadioReply::FuncInfo const& fi = zeta.readFunctionRevisionInformation();
   //old- const Si4455_FuncInfo &fi = zeta.readFuncInfo();
   Serial.print("Rev Ext   : "); Serial.println(fi.REVEXT);
   Serial.print("Rev Branch: "); Serial.println(fi.REVBRANCH);
@@ -52,17 +52,18 @@ void setup()
   Serial.print("Patch     : "); Serial.println(fi.PATCH.U16);
   Serial.print("Func      : "); Serial.println(fi.FUNC);
   Serial.print("SVN Flags : "); Serial.println(fi.SVNFLAGS);
-  Serial.print("SVN Rev   : "); Serial.println(fi.SVNREV.U32);
+  Serial.print("SVN Rev   : "); Serial.println(fi.SVNREV.U32, HEX);
   Serial.println("----------");//*/
   
 
   // Start continuous listening on channel 4 (auto-returns to listening after reception of a packet)
-  zeta.startListeningOnChannel(4);
+  // ! BEWARE ! Auto-return to RX may fail after a while and leave the radio module unresponding (call begin again to fix).
+  //zeta.startListeningOnChannel(4);
   //old- zeta.startListening();
   // Or just listen for one packet then wait (needed to be able to read a packet's RSSI)
-  //zeta.startListeningSinglePacketOnChannel(4);
+  zeta.startListeningSinglePacketOnChannel(4);
 
-  Serial.println("Init done.");
+  Serial.println(F("Init done."));
 }
 
 
@@ -79,10 +80,29 @@ void loop()
 
   if (ZetaRF::Events const ev = zeta.checkForEvent()) {
     if (ev & ZetaRF::Event::DeviceBusy) {
-      Serial.println("Error: Device Busy!");
+      // DeviceBusy error usually means the radio module is unresponding and need a reset.
+      Serial.println(F("Error: Device Busy! Restarting..."));
+
+      if (!zeta.beginWithPacketLengthOf(ZetaRFPacketLength)) {
+        Serial.println(F("ZetaRF begin failed after comm error."));
+        while (true);
+      }
+    }
+    /*if (ev & ZetaRF::Event::LatchedRssi) {
+      uint8_t rssi = zeta.latchedRssiValue();
+      Serial.print(F("RSSI: "));
+      Serial.println(rssi);
+    }//*/
+    if (ev & ZetaRF::Event::PacketReceived) {
+      // We'll read data later
+      uint8_t rssi = zeta.latchedRssiValue();
+      zeta.restartListening();
+      Serial.print(F("Packet received with RSSI: "));
+      Serial.println(rssi);
     }
     if (ev & ZetaRF::Event::PacketTransmitted) {
-      Serial.println("Msg transmitted");
+      zeta.restartListening();
+      Serial.println(F("Packet transmitted"));
     }
     /*if (ev & ZetaRF::Event::TxFifoAlmostEmpty) {
       Serial.println("TX Fifo almost empty");
@@ -96,6 +116,8 @@ void loop()
     if (zeta.readPacketTo((uint8_t*)data)) { // Uses packet length set at zeta.beginWithPacketLengthOf(). Data buffer must be large enough!
       //zeta.readPacketTo((uint8_t*)data, ZetaRFPacketLength); // Alternative way, but be careful to not read more than the packet length.
       //old- zeta.readPacket(data)
+
+      //zeta.restartListening(); // If not in checkForEvent
 
       // Print!
       Serial.print("RX> ");
@@ -125,7 +147,7 @@ void loop()
       Serial.println("<");
 
       // Send buffer
-      zeta.sendFixedLengthPacket(4, (const uint8_t*)data);
+      zeta.sendFixedLengthPacketOnChannel(4, (const uint8_t*)data);
       // Module will automatically return to listening mode
     }
   }

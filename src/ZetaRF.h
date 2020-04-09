@@ -5,6 +5,12 @@
  * License: see LICENSE file
  */
 
+/* Si4455 Known Issues - Rev B1B? (ROMID=3) - No errata found for this rev.
+
+START_TX command with auto-return to RX STATE: will lock the chip after a while. Return to READY and use START_RX command.
+
+*/
+
 #pragma once
 
 //#define ZETARF_DEBUG_ON
@@ -16,6 +22,7 @@
     #define debug(...)
     #define debugln(...)
 #endif
+
 
 #include "zetarf_hal.hpp"
 #include "zetarf_arduino_spi_hal.h"
@@ -193,6 +200,12 @@ public:
         m_radio.deinitialize();
     }
 
+    bool requestNop()
+    {
+        m_radio.noOperation();
+        return m_radio.succeeded();
+    }
+
     /*!
      * Send data to @a channel. Returns to previous radio state after TX complete.
      * Notes when using variable length packets:
@@ -205,7 +218,7 @@ public:
      * @param dataSize Data length (bytes). Includes payload length byte when using variable length packets. Fill with zeros if < packet length.
      * @param timeout_ms Max delay in ms to wait for the device to be ready to send a packet.
      */
-    bool sendFixedLengthPacket(uint8_t channel, uint8_t const* data, uint8_t dataSize, unsigned long timeout_ms)
+    bool sendFixedLengthPacketOnChannel(uint8_t channel, uint8_t const* data, uint8_t dataSize, unsigned long timeout_ms)
     {
         // TODO: handle retransmit feature
         if (!data || dataSize == 0)
@@ -215,10 +228,10 @@ public:
             return false;
 
         // TxComplete value should not be 7 (TX state) as waitReadyToSendPacket checks for that.
-        uint8_t const txCompleteState = static_cast<uint8_t>(radioState());
+        RadioState const txCompleteState = radioState();
 
         // Fill the TX fifo with data
-        using namespace std;
+        using namespace std; // In case min() is not a f* define as with Arduino
         m_radio.writeTxFifo(data, min(m_packetLength, dataSize));
 
         // Fill remaining with data
@@ -228,7 +241,8 @@ public:
 
         // Start sending packet on channel, return to previous state after transmit
         m_radio.startTx(channel,
-                        txCompleteState << SI4455_CMD_START_TX_ARG_TXCOMPLETE_STATE_LSB,
+                        static_cast<uint8_t>(txCompleteState),
+                        false, // retransmit
                         m_packetLength);
 
         return m_radio.succeeded();
@@ -243,7 +257,7 @@ public:
      * @param length Data length (bytes). Do not include the payload length byte.
      * @param timeout_ms Max delay in ms to wait for the device to be ready to send a packet.
      */
-    bool sendVariableLengthPacket(uint8_t channel, uint8_t const* data, uint8_t dataByteCount, unsigned long timeout_ms)
+    bool sendVariableLengthPacketOnChannel(uint8_t channel, uint8_t const* data, uint8_t dataByteCount, unsigned long timeout_ms)
     {
         if (!data || dataByteCount == 0)
             return false;
@@ -387,9 +401,21 @@ public:
     }
 
     //! Manually reset the RX Fifo and loose any pending packet.
-    void requestResetRxFifo() {
+    bool requestResetRxFifo() {
         m_radio.resetRxFifo();
         m_dataAvailable = false;
+        return m_radio.succeeded();
+    }
+
+    bool requestResetTxFifo() {
+        m_radio.resetTxFifo();
+        return m_radio.succeeded();
+    }
+
+    bool requestResetRxAndTxFifo() {
+        m_radio.resetRxAndTxFifo();
+        m_dataAvailable = false;
+        return m_radio.succeeded();
     }
 
     // Checks if the current state of the module seems correct.
@@ -556,8 +582,10 @@ private:
         if (m_radio.failed()) //it & EZRadio::Interrupt::DeviceBusy)
             return false;
 
-        //debugln("Events:");
-        //printEvents(ev);
+#if defined(ZETARF_DEBUG_ON)
+        debugln("Events:");
+        printEvents(ev);
+#endif
 
         m_events  &= ~Event::CommandError;
         m_events |= ev;
@@ -579,8 +607,8 @@ private:
     {
         if (events & Event::DeviceBusy) debugln("ERROR: Device Busy");
 
-        if (events & Event::PacketTransmitted) debugln("Packet IT: Data Transmitted");
-        if (events & Event::PacketReceived) debugln("Packet IT: Data Available");
+        if (events & Event::PacketTransmitted) debugln("Packet IT: Packet Transmitted");
+        if (events & Event::PacketReceived) debugln("Packet IT: Packet Received");
         if (events & Event::CrcError) debugln("Packet IT: CRC Error");
         if (events & Event::TxFifoAlmostEmpty) debugln("Packet IT: TX FIFO Almost Empty");
         if (events & Event::RxFifoAlmostFull) debugln("Packet IT: RX FIFO Almost Full");
@@ -647,17 +675,17 @@ public:
 
     //! Send either fixed or variable length packet depending on radio config. Data is put in FIFO and set to send.
     //! For fixed length packet mode, if @a dataSize is less than the packet size, zeros are automatically appended.
-    bool sendPacket(uint8_t channel, uint8_t const* data, uint8_t dataSize, unsigned long timeoutForReady_ms = 100) {
+    bool sendPacketOnChannel(uint8_t channel, uint8_t const* data, uint8_t dataSize, unsigned long timeoutForReady_ms = 100) {
         if (Config::VariableLengthPacketConfiguration)
-            return Base::sendVariableLengthPacket(channel, data, dataSize, timeoutForReady_ms);
+            return Base::sendVariableLengthPacketOnChannel(channel, data, dataSize, timeoutForReady_ms);
         else
-            return Base::sendFixedLengthPacket(channel, data, dataSize, timeoutForReady_ms);
+            return Base::sendFixedLengthPacketOnChannel(channel, data, dataSize, timeoutForReady_ms);
     }
 
     //! Send fixed length packet, config length or user-set length is used. RX must be waiting for that length of packet. Data is put in FIFO and set to send.
     //! @a data must point to at least 'packet length' bytes.
-    bool sendFixedLengthPacket(uint8_t channel, uint8_t const* data, unsigned long timeoutForReady_ms = 100) {
-        return Base::sendFixedLengthPacket(channel, data, Base::m_packetLength, timeoutForReady_ms);
+    bool sendFixedLengthPacketOnChannel(uint8_t channel, uint8_t const* data, unsigned long timeoutForReady_ms = 100) {
+        return Base::sendFixedLengthPacketOnChannel(channel, data, Base::m_packetLength, timeoutForReady_ms);
     }
 
     //! Send fixed length packet with specified length. RX must be waiting for that length of packet. Data is put in FIFO and set to send.
@@ -665,9 +693,9 @@ public:
     //bool sendFixedLengthPacket(uint8_t channel, uint8_t const* data, uint8_t dataSize, unsigned long timeoutForReady_ms = 100)
 
     //! Send variable length packet. Data is put in FIFO and set to send.
-    bool sendVariableLengthPacket(uint8_t channel, uint8_t const* data, uint8_t dataSize, unsigned long timeoutForReady_ms = 100) {
+    bool sendVariableLengthPacketOnChannel(uint8_t channel, uint8_t const* data, uint8_t dataSize, unsigned long timeoutForReady_ms = 100) {
         //static_assert(Config::VariableLengthPacketConfiguration, "Radio configuration does not support variable length packets.");
-        return Base::sendVariableLengthPacket(channel, data, dataSize, timeoutForReady_ms);
+        return Base::sendVariableLengthPacketOnChannel(channel, data, dataSize, timeoutForReady_ms);
     }
 
 
