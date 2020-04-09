@@ -1,19 +1,18 @@
 /*
- * Zeta RF Getting Started Code Example.
- * Basic example on how to send messages back and forth between two modules.
+ * Zeta RF v2 Getting Started Code Example.
+ * Basic example on how to send messages back and forth between two modules using fixed size packets.
  *
  * Usage: write this sample on both boards and send text over serial!
  */
 
 #include <ZetaRF.h>
 
-// Zeta modules transmit messages using fixed size packets, define here the max size you want to use
-#define ZETARF_PACKET_LENGTH 8
+// Zeta modules transmit messages using fixed size packets, define here the max size you want to use. For variable length packets, see the corresponding example.
+// Radio configurations also sets a default packet size, usually 8, that you can get using zeta.defaultPacketLength().
+constexpr size_t ZetaRFPacketLength {8};
 
 ZetaRF868<ZetaRF::nSEL<10>, ZetaRF::SDN<9>, ZetaRF::nIRQ<8>> zeta;
-//ZetaRF868<ChipSelectPin<10>, ShutdownPin<9>, IrqPin<8>> zeta; // Alternative naming
-//old- ZetaRF2 zeta(10,9,8);
-constexpr size_t ZetaRFPacketLength {8};
+//old- ZetaRF zeta(10,9,8);
 
 char data[ZetaRFPacketLength] = "Hello ";
 
@@ -33,7 +32,7 @@ void setup()
   }
 
   // Print some info about the chip
-  const Si4455_PartInfo &pi = zeta.readPartInformation();
+  EZRadioReply::PartInfo const& pi = zeta.readPartInformation();
   //old- const Si4455_PartInfo &pi = zeta.readPartInfo();
   Serial.println("----------");
   Serial.print("Chip rev: "); Serial.println(pi.CHIPREV);
@@ -45,7 +44,7 @@ void setup()
   Serial.print("Bond    : "); Serial.println(pi.BOND);
   Serial.print('\n');
 
-  const Si4455_FuncInfo &fi = zeta.readFunctionRevisionInformation();
+  EZRadioReply::FuncInfo const& fi = zeta.readFunctionRevisionInformation();
   //old- const Si4455_FuncInfo &fi = zeta.readFuncInfo();
   Serial.print("Rev Ext   : "); Serial.println(fi.REVEXT);
   Serial.print("Rev Branch: "); Serial.println(fi.REVBRANCH);
@@ -70,18 +69,42 @@ void setup()
 
 void loop()
 {
+  // At least one of the zeta.checkFor*Event*() methods must be called in order to update the library.
+  // checkForEvent() returns any event of: Event::CrcError | Event::PacketTransmitted | Event::PacketReceived | Event::LatchedRssi
+  //                                     | Event::TxFifoAlmostEmpty | Event::RxFifoAlmostFull | Event::FifoUnderflowOrOverflowError
+  // checkForAnyEventOf(filter) enables you to filter events.
+  // checkForAllEventsOf(filter) will return ZetaRF::Event::None unless all events in filter are present.
+  //
+  // Unfiltered events are accessible via zeta.events(). Use zeta.clearEvents([event]) to clear all or specified events.
+
+  if (ZetaRF::Events const ev = zeta.checkForEvent()) {
+    if (ev & ZetaRF::Event::DeviceBusy) {
+      Serial.println("Error: Device Busy!");
+    }
+    if (ev & ZetaRF::Event::PacketTransmitted) {
+      Serial.println("Msg transmitted");
+    }
+    /*if (ev & ZetaRF::Event::TxFifoAlmostEmpty) {
+      Serial.println("TX Fifo almost empty");
+    }//*/
+  }
+
+
+
   // Read incoming packet and print it
   if (zeta.available()) {
-    if (zeta.readPacketTo((uint8_t*)data)) { // Uses packet length set at zeta.beginWithPacketLengthOf(). Buffer must be large enough!
+    if (zeta.readPacketTo((uint8_t*)data)) { // Uses packet length set at zeta.beginWithPacketLengthOf(). Data buffer must be large enough!
       //zeta.readPacketTo((uint8_t*)data, ZetaRFPacketLength); // Alternative way, but be careful to not read more than the packet length.
+      //old- zeta.readPacket(data)
 
       // Print!
+      Serial.print("RX> ");
       Serial.write(data, ZetaRFPacketLength); Serial.println();
       // Print in HEX
       for (uint8_t i = 0; i < zeta.packetLength(); i++) {
         Serial.print(data[i], HEX);
       }
-      Serial.println();
+      Serial.println("<");
     }
   }
 
@@ -89,17 +112,17 @@ void loop()
   // Send any data received from serial
   if (Serial.available()) {
     // Check FIFO space first
-    if (zeta.bytesAvailableInTxFifo() >= ZetaRFPacketLength) {
+    if (zeta.requestBytesAvailableInTxFifo() >= ZetaRFPacketLength) {
       int s = Serial.readBytes(data, ZetaRFPacketLength);
 
       // Pad with zeros
-      for (int i = s; i < ZetaRFPacketLength; i++) {
+      for (unsigned int i = s; i < ZetaRFPacketLength; i++) {
         data[i] = 0;
       }
 
-      Serial.print("Sending >");
+      Serial.print("TX>");
       Serial.write(data, ZetaRFPacketLength);
-      Serial.print("<\n");
+      Serial.println("<");
 
       // Send buffer
       zeta.sendFixedLengthPacket(4, (const uint8_t*)data);
@@ -107,17 +130,5 @@ void loop()
     }
   }
 
-
-/*
-  // Check if message was transmitted successfully
-  if (zeta.wasDataTransmitted()) {
-    Serial.println("msg transmitted");
-  }
-
-  // TODO: check fifo status flags
-  if (zeta.isTxFifoAlmostEmpty()) {
-    //
-  }//*/
-
-  delay(10);
+  delay(10); // Hooo, not too fast! But you could...
 }
