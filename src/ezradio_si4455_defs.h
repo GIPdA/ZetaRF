@@ -262,6 +262,34 @@ union si4455_cmd_reply_union
     struct si4455_reply_PACKET_INFO_map                                    PACKET_INFO;
 };
 
+
+namespace EZRadioReply {
+// Pretty names for reply packets
+typedef si4455_reply_FIFO_INFO_map      FifoInfo;
+typedef si4455_reply_GPIO_PIN_CFG_map   GpioPinConfig;
+typedef si4455_reply_GET_INT_STATUS_map InterruptStatus;
+typedef si4455_reply_PART_INFO_map      PartInfo;
+typedef si4455_reply_GET_PROPERTY_map   Properties;
+typedef si4455_reply_FUNC_INFO_map      FuncInfo;
+
+typedef si4455_reply_FRR_A_READ_map     FrrA;
+typedef si4455_reply_FRR_B_READ_map     FrrB;
+typedef si4455_reply_FRR_C_READ_map     FrrC;
+typedef si4455_reply_FRR_D_READ_map     FrrD;
+
+typedef si4455_reply_REQUEST_DEVICE_STATE_map   DeviceState;
+typedef si4455_reply_READ_CMD_BUFF_map          CommandBuffer;
+typedef si4455_reply_GET_ADC_READING_map        AdcReadings;
+
+typedef si4455_reply_GET_PH_STATUS_map      PhStatus;
+typedef si4455_reply_GET_MODEM_STATUS_map   ModemStatus;
+typedef si4455_reply_GET_CHIP_STATUS_map    ChipStatus;
+
+typedef si4455_reply_PACKET_INFO_map    PacketInfo;
+
+typedef si4455_cmd_reply_union CommandReplyUnion;
+}
+
 #define SI4455_FIFO_SIZE 64
 
 

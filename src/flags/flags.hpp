@@ -25,8 +25,8 @@ public:
 
 public:
   flags() noexcept = default;
-  flags(const flags &fl) noexcept = default;
-  flags &operator=(const flags &fl) noexcept = default;
+  flags(flags const& fl) noexcept = default;
+  flags &operator=(flags const& fl) noexcept = default;
   flags(flags &&fl) noexcept = default;
   flags &operator=(flags &&fl) noexcept= default;
 
@@ -58,17 +58,17 @@ public:
 
   constexpr flags operator~() const noexcept { return flags(~val_); }
 
-  flags &operator|=(const flags &fl) noexcept {
+  flags &operator|=(flags const& fl) noexcept {
     val_ |= fl.val_;
     return *this;
   }
 
-  flags &operator&=(const flags &fl) noexcept {
+  flags &operator&=(flags const& fl) noexcept {
     val_ &= fl.val_;
     return *this;
   }
 
-  flags &operator^=(const flags &fl) noexcept {
+  flags &operator^=(flags const& fl) noexcept {
     val_ ^= fl.val_;
     return *this;
   }
@@ -89,15 +89,15 @@ public:
     return *this;
   }
 
-  friend constexpr flags operator|(flags f1, flags f2) noexcept {
+  friend constexpr flags operator|(flags const& f1, flags const& f2) noexcept {
     return flags(static_cast<impl_type>(f1.val_ | f2.val_));
   }
 
-  friend constexpr flags operator&(flags f1, flags f2) noexcept {
+  friend constexpr flags operator&(flags const& f1, flags const& f2) noexcept {
     return flags(static_cast<impl_type>(f1.val_ & f2.val_));
   }
 
-  friend  constexpr flags operator^(flags f1, flags f2) noexcept {
+  friend  constexpr flags operator^(flags const& f1, flags const& f2) noexcept {
     return flags(static_cast<impl_type>(f1.val_ ^ f2.val_));
   }
 
@@ -118,8 +118,12 @@ public:
   // Returns true if e was set
   bool clear(enum_type e) noexcept {
     impl_type const v = val_;
-    val_ &= static_cast<impl_type>(e);
+    val_ &= ~static_cast<impl_type>(e);
     return v != val_;
+  }
+
+  void clear(flags const& fl) noexcept {
+    val_ &= ~fl.val_;
   }
 
   constexpr bool has(enum_type e) const noexcept {
@@ -127,7 +131,7 @@ public:
   }
 
 private:
-  impl_type val_;
+  impl_type val_ {0};
 };
 
 } // namespace flags

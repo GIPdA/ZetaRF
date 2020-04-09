@@ -88,4 +88,29 @@ template< bool B, class T = void >
 using enable_if_t = typename enable_if<B,T>::type;
 
 
+
+// [20.5.6.2] reference modifications:
+
+template <class _Tp>
+struct remove_reference
+{
+    typedef _Tp type;
+};
+
+template <class _Tp>
+struct remove_reference<_Tp&>
+{
+    typedef _Tp type;
+};
+
+
+template <class _Tp>
+struct add_rvalue_reference
+{
+    typedef typename remove_reference<_Tp>::type&& type;
+};
+
+template <class _Tp>
+typename add_rvalue_reference<_Tp>::type declval();
+
 } // namespace std

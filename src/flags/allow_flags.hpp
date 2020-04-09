@@ -2,7 +2,7 @@
 #define ENUM_CLASS_ALLOW_FLAGS_HPP
 
 #ifdef __AVR__
-#include "../avr_helpers/type_traits.h"
+#include "../avr_helpers/type_traits.hpp"
 #else
 #include <type_traits>
 #endif
