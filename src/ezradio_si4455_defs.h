@@ -10,6 +10,8 @@
 
 #include <stdint.h>
 
+#define ZETARF_PACKED __attribute__((packed))
+
 typedef union
 {
     uint16_t U16;
@@ -50,7 +52,7 @@ struct si4455_reply_GENERIC_map
     uint8_t  REPLY16;
 };
 
-struct si4455_reply_PART_INFO_map
+struct ZETARF_PACKED si4455_reply_PART_INFO_map
 {
     uint8_t  CHIPREV;
     UU16 PART;
@@ -81,7 +83,7 @@ struct si4455_reply_TEST_DATA_map
     uint8_t  TESTF;
 };
 
-struct si4455_reply_FUNC_INFO_map
+struct ZETARF_PACKED si4455_reply_FUNC_INFO_map
 {
     uint8_t  REVEXT;
     uint8_t  REVBRANCH;
@@ -152,7 +154,7 @@ struct si4455_reply_GET_PH_STATUS_map
     uint8_t  PH_STATUS;
 };
 
-struct si4455_reply_GET_MODEM_STATUS_map
+struct ZETARF_PACKED si4455_reply_GET_MODEM_STATUS_map
 {
     uint8_t  MODEM_PEND;
     uint8_t  MODEM_STATUS;
@@ -223,7 +225,7 @@ struct si4455_reply_FRR_D_READ_map {
     uint8_t  FRR_C_VALUE;
 };
 
-struct si4455_reply_GET_ADC_READING_map {
+struct ZETARF_PACKED si4455_reply_GET_ADC_READING_map {
     UU16 GPIO_ADC;
     UU16 BATTERY_ADC;
     UU16 TEMP_ADC;
@@ -231,7 +233,7 @@ struct si4455_reply_GET_ADC_READING_map {
     uint8_t  TEMP_INTERCEPT;
 };
 
-struct si4455_reply_PACKET_INFO_map {
+struct ZETARF_PACKED si4455_reply_PACKET_INFO_map {
     UU16 LENGTH;
 };
 
@@ -262,6 +264,7 @@ union si4455_cmd_reply_union
     struct si4455_reply_PACKET_INFO_map                                    PACKET_INFO;
 };
 
+#undef ZETARF_PACKED
 
 namespace EZRadioReply {
 // Pretty names for reply packets

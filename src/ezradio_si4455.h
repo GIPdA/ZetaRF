@@ -702,7 +702,6 @@ public:
 			SI4455_CMD_ID_PART_INFO
 		};
 
-		// TODO: check PART value, seems like MSB is null and it shouldn't be.
 		sendCommandAndReadResponse(buffer, SI4455_CMD_ARG_COUNT_PART_INFO,
 								m_commandReply.RAW, SI4455_CMD_REPLY_COUNT_PART_INFO);
 		return m_commandReply.PART_INFO;
@@ -928,7 +927,7 @@ private:
 
 	// Write zeros in command buffer
 	void _cleanCommandBuffer() {
-		memset(m_commandReply.RAW, 0, 16);
+		memset(m_commandReply.RAW, 42, 16);
 	}
 
 	Hal m_hal;
