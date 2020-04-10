@@ -382,8 +382,8 @@ public:
         return m_radio.succeeded() && (m_listeningChannel == newChannel);
     }
 
-    bool restartListening() {
-        return startListening(m_listeningChannel, m_packetLength);
+    bool restartListeningSinglePacket() {
+        return startListeningSinglePacket(m_listeningChannel, m_packetLength);
     }
 
     // Space left in TX FIFO

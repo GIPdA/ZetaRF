@@ -87,21 +87,29 @@ void loop()
         Serial.println(F("ZetaRF begin failed after comm error."));
         while (true);
       }
+      zeta.restartListeningSinglePacket();
     }
     /*if (ev & ZetaRF::Event::LatchedRssi) {
+      // Latched RSSI is cleared when restarting RX
       uint8_t rssi = zeta.latchedRssiValue();
       Serial.print(F("RSSI: "));
       Serial.println(rssi);
     }//*/
     if (ev & ZetaRF::Event::PacketReceived) {
       // We'll read data later
+      // Get RSSI (only valid in single packet RX, before going back to RX)
       uint8_t rssi = zeta.latchedRssiValue();
-      zeta.restartListening();
+
+      // Restart listening on the same channel
+      zeta.restartListeningSinglePacket();
+
       Serial.print(F("Packet received with RSSI: "));
       Serial.println(rssi);
     }
     if (ev & ZetaRF::Event::PacketTransmitted) {
-      zeta.restartListening();
+      // Back to RX afer TX
+      zeta.restartListeningSinglePacket();
+
       Serial.println(F("Packet transmitted"));
     }
     /*if (ev & ZetaRF::Event::TxFifoAlmostEmpty) {
@@ -117,7 +125,7 @@ void loop()
       //zeta.readPacketTo((uint8_t*)data, ZetaRFPacketLength); // Alternative way, but be careful to not read more than the packet length.
       //old- zeta.readPacket(data)
 
-      //zeta.restartListening(); // If not in checkForEvent
+      //zeta.restartListeningSinglePacket(); // If not in checkForEvent
 
       // Print!
       Serial.print("RX> ");
