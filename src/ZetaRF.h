@@ -591,7 +591,7 @@ private:
         printEvents(ev);
 #endif
 
-        m_events  &= ~Event::CommandError;
+        m_events &= ~Event::CommandError;
         m_events |= ev;
 
         if (ev & Event::PacketReceived) {

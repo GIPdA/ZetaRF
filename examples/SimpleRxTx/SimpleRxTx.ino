@@ -98,7 +98,7 @@ void loop()
     if (ev & ZetaRF::Event::PacketReceived) {
       // We'll read data later
       // Get RSSI (only valid in single packet RX, before going back to RX)
-      uint8_t rssi = zeta.latchedRssiValue();
+      uint8_t const rssi = zeta.latchedRssiValue();
 
       // Restart listening on the same channel
       zeta.restartListeningSinglePacket();
@@ -132,6 +132,7 @@ void loop()
       Serial.write(data, ZetaRFPacketLength);
       Serial.println("<");
       // Print in HEX
+      Serial.println("HEX >");
       for (uint8_t i = 0; i < zeta.packetLength(); i++) {
         Serial.print(data[i], HEX);
       }
@@ -147,7 +148,7 @@ void loop()
       int const s = Serial.readBytes(data, ZetaRFPacketLength);
 
       // Pad with zeros
-      for (unsigned int i = s; i < ZetaRFPacketLength; i++) {
+      for (uint8_t i = s; i < ZetaRFPacketLength; i++) {
         data[i] = 0;
       }
 

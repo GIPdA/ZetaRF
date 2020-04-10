@@ -27,7 +27,7 @@ void setup()
     Serial.begin(115200);
     while (!Serial); // Might wait for actual serial terminal to connect over USB
 
-    Serial.println("Starting ZetaRF Variable Length Latenty Test...");
+    Serial.println("Starting ZetaRF Variable Length Latency Test...");
 
     if (!zeta.begin()) {
         Serial.println(F("ZetaRF begin failed. Check wiring?"));

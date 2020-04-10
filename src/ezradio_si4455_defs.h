@@ -237,6 +237,7 @@ struct ZETARF_PACKED si4455_reply_PACKET_INFO_map {
     UU16 LENGTH;
 };
 
+#undef ZETARF_PACKED
 
 /* The union that stores the reply written back to the host registers */
 union si4455_cmd_reply_union
@@ -264,7 +265,6 @@ union si4455_cmd_reply_union
     struct si4455_reply_PACKET_INFO_map                                    PACKET_INFO;
 };
 
-#undef ZETARF_PACKED
 
 namespace EZRadioReply {
 // Pretty names for reply packets
