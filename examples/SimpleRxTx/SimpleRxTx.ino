@@ -128,8 +128,9 @@ void loop()
       //zeta.restartListeningSinglePacket(); // If not in checkForEvent
 
       // Print!
-      Serial.print("RX> ");
-      Serial.write(data, ZetaRFPacketLength); Serial.println();
+      Serial.print("RX >");
+      Serial.write(data, ZetaRFPacketLength);
+      Serial.println("<");
       // Print in HEX
       for (uint8_t i = 0; i < zeta.packetLength(); i++) {
         Serial.print(data[i], HEX);
@@ -143,20 +144,19 @@ void loop()
   if (Serial.available()) {
     // Check FIFO space first
     if (zeta.requestBytesAvailableInTxFifo() >= ZetaRFPacketLength) {
-      int s = Serial.readBytes(data, ZetaRFPacketLength);
+      int const s = Serial.readBytes(data, ZetaRFPacketLength);
 
       // Pad with zeros
       for (unsigned int i = s; i < ZetaRFPacketLength; i++) {
         data[i] = 0;
       }
 
-      Serial.print("TX>");
+      Serial.print("TX >");
       Serial.write(data, ZetaRFPacketLength);
       Serial.println("<");
 
       // Send buffer
       zeta.sendFixedLengthPacketOnChannel(4, (const uint8_t*)data);
-      // Module will automatically return to listening mode
     }
   }
 

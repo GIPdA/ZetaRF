@@ -1,13 +1,16 @@
 /*! @file ZetaRF.h
  *
  * @brief ZetaRF library main file
+ * @version 2.0
  *
  * License: see LICENSE file
  */
 
-/* Si4455 Known Issues - Rev B1B? (ROMID=3) - No errata found for this rev.
+/* Si4455 Known Issues - Rev B1B? (ROMID=3) - No errata sheet found for this rev.
 
-START_TX command with auto-return to RX STATE: will lock the chip after a while. Return to READY and use START_RX command.
+Chip lock-up:
+START_TX command with auto-return to RX STATE: will lock the chip after a while. Return to READY instead and use START_RX command after each RX/TX (single packet RX and restart RX methods).
+
 
 */
 
@@ -239,7 +242,7 @@ public:
             m_radio.writeTxFifoWithZeros(m_packetLength-dataSize);
         }
 
-        // Start sending packet on channel, return to previous state after transmit
+        // Start sending packet on channel, return to current state after transmit
         m_radio.startTx(channel,
                         static_cast<uint8_t>(txCompleteState),
                         false, // retransmit
@@ -486,7 +489,7 @@ private:
     bool waitReadyToSendPacket(unsigned long timeout_ms)
     {
         if (!m_radio.waitForClearToSend(timeout_ms)) {
-            Serial.println("Wait CTS failed");
+            debugln("Wait CTS failed");
             return false;
         }
 
