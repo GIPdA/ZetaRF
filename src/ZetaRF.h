@@ -505,7 +505,7 @@ private:
             }
 
             //delay(1);
-            delayMicroseconds(200);
+            delayMicroseconds(100);
 
             s = radioState();
         }
