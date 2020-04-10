@@ -269,16 +269,17 @@ public:
             return false;
 
         // TxComplete value should not be 7 (TX state) as waitReadyToSendPacket checks for that.
-        uint8_t const txCompleteState = static_cast<uint8_t>(radioState());
+        RadioState const txCompleteState = radioState();
 
         // Write the varible length field
         m_radio.writeTxFifo(&dataByteCount, 1);
         // Fill the TX fifo with data
         m_radio.writeTxFifo(data, dataByteCount);
 
-        // Start sending packet on channel, return to RX after transmit
+        // Start sending packet on channel, return to current state after transmit
         m_radio.startTx(channel,
-                        txCompleteState << SI4455_CMD_START_TX_ARG_TXCOMPLETE_STATE_LSB,
+                        static_cast<uint8_t>(txCompleteState),
+                        false, // retransmit
                         dataByteCount+1);
 
         return m_radio.succeeded();
@@ -736,9 +737,14 @@ public:
 
 
 
-// Default configs
+// Default Arduino configs
 template<class ...Ts>
 using ZetaRF868 = ZetaRFConfig<ZetaRFConfigs::Config868_FixedLength_CRC_Preamble10_Sync4_Payload8, ZetaRFEZRadio::EZRadioSi4455<ZetaRFHal::ArduinoSpiHal<Ts...>> >;
+
+// Variable Length
+template<class ...Ts>
+using ZetaRF868_VL = ZetaRFConfig<ZetaRFConfigs::Config868_VariableLength_CRC_Preamble10_Sync4_Payload8, ZetaRFEZRadio::EZRadioSi4455<ZetaRFHal::ArduinoSpiHal<Ts...>> >;
+
 
 /*
 template<class ...Ts>
