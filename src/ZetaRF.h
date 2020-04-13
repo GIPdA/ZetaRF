@@ -168,7 +168,7 @@ public:
         // Power up
         hardwareReset();
         // Wait until reset timeout or Reset IT signal
-        delay(100);
+        //delay(100);
 
         int retryCount = 2;
         // Load radio configuration
@@ -463,10 +463,10 @@ public:
     {
         // Put radio in shutdown, wait then release
         m_radio.holdInReset();
-        delay(10);
+        delayMicroseconds(20);
         _clearEvents();
         m_radio.releaseFromReset();
-        delay(10);
+        delay(5);
     }
 
     EZRadioReply::PartInfo const& readPartInformation() {
