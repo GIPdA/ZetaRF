@@ -226,7 +226,7 @@ public:
         if (!data || dataSize == 0)
             return false;
 
-        if (!waitReadyToSendPacket(timeout_ms))
+        if (!waitUntilOutOfTx(timeout_ms))
             return false;
 
         // TxComplete value should not be 7 (TX state) as waitReadyToSendPacket checks for that.
@@ -264,7 +264,7 @@ public:
         if (!data || dataByteCount == 0)
             return false;
 
-        if (!waitReadyToSendPacket(timeout_ms))
+        if (!waitUntilOutOfTx(timeout_ms))
             return false;
 
         // TxComplete value should not be 7 (TX state) as waitReadyToSendPacket checks for that.
@@ -369,6 +369,9 @@ public:
 
     bool startListeningOnChannel(uint8_t newChannel)
     {
+        if (!waitUntilOutOfTx(20))
+            return false;
+
         if (!startListening(newChannel, m_packetLength))
             return false;
 
@@ -378,6 +381,9 @@ public:
 
     bool startListeningSinglePacketOnChannel(uint8_t newChannel)
     {
+        if (!waitUntilOutOfTx(20))
+            return false;
+
         if (!startListeningSinglePacket(newChannel, m_packetLength))
             return false;
 
@@ -486,7 +492,7 @@ private:
         return true;
     }
 
-    bool waitReadyToSendPacket(unsigned long timeout_ms)
+    bool waitUntilOutOfTx(unsigned long timeout_ms)
     {
         if (!m_radio.waitForClearToSend(timeout_ms)) {
             debugln("Wait CTS failed");
