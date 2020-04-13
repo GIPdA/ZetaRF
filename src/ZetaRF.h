@@ -9,8 +9,7 @@
 /* Si4455 Known Issues - Rev B1B? (ROMID=3) - No errata sheet found for this rev.
 
 Chip lock-up:
-START_TX command with auto-return to RX STATE: will lock the chip after a while. Return to READY instead and use START_RX command after each RX/TX (single packet RX and restart RX methods).
-
+START_RX command with return state on timeout to RX may leave the chip unresponding (CTS not clearing). Return to NOCHANGE to fix.
 
 */
 
@@ -552,7 +551,7 @@ private:
 
         // Start Receiving packet on channel, START immediately, Packet n bytes long
         m_radio.startRx(channel, 0, packetLength,
-                        SI4455_CMD_START_RX_ARG_RXTIMEOUT_STATE_ENUM_RX,
+                        SI4455_CMD_START_RX_ARG_RXTIMEOUT_STATE_ENUM_NOCHANGE,
                         SI4455_CMD_START_RX_ARG_RXVALID_STATE_ENUM_RX,
                         SI4455_CMD_START_RX_ARG_RXINVALID_STATE_ENUM_RX);
 
@@ -571,7 +570,7 @@ private:
 
         // Start Receiving packet on channel, START immediately, Packet n bytes long
         m_radio.startRx(channel, 0, packetLength,
-                        SI4455_CMD_START_RX_ARG_RXTIMEOUT_STATE_ENUM_RX,
+                        SI4455_CMD_START_RX_ARG_RXTIMEOUT_STATE_ENUM_NOCHANGE,
                         SI4455_CMD_START_RX_ARG_RXVALID_STATE_ENUM_READY,
                         SI4455_CMD_START_RX_ARG_RXINVALID_STATE_ENUM_RX);
 

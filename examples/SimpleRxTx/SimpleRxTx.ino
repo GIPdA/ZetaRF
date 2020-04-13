@@ -57,7 +57,6 @@ void setup()
   
 
   // Start continuous listening on channel 4 (auto-returns to listening after reception of a packet)
-  // ! BEWARE ! Auto-return to RX may fail after a while and leave the radio module unresponding (call begin again to fix).
   //zeta.startListeningOnChannel(4);
   //old- zeta.startListening();
   // Or just listen for one packet then wait (needed to be able to read a packet's RSSI)
