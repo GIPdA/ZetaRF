@@ -13,6 +13,7 @@
 #include <ZetaRF.h>
 
 constexpr size_t ZetaRFPacketLength {32};
+constexpr size_t ZetaRFPacketMinLength {8};
 
 ZetaRF868_VL<ZetaRF::nSEL<10>, ZetaRF::SDN<9>, ZetaRF::nIRQ<8>> zeta;
 
@@ -20,6 +21,9 @@ char data[ZetaRFPacketLength] = "Hello ";
 
 bool runTest = false; // send 'r' over serial to start, 's' to stop
 unsigned long txTime = 0;
+
+unsigned long txCount = 0;
+unsigned long rxCount = 0;
 
 
 void setup()
@@ -70,11 +74,14 @@ void loop()
                     zeta.sendVariableLengthPacketOnChannel(4, (const uint8_t*)data, readSize);
                 }
                 uint8_t rssi = zeta.latchedRssiValue();
+                rxCount++;
 
                 Serial.print("RX (");
                 Serial.print(int(readSize));
                 Serial.print(") ");
                 Serial.print(int(data[0]));
+                Serial.print(" # ");
+                Serial.print(rxCount);
                 Serial.print(" at RSSI ");
                 Serial.println(int(rssi));
             } else {
@@ -126,11 +133,22 @@ void loop()
 
             //Serial.print("\nDevice state: ");
             //Serial.println(static_cast<int>(zeta.radioState()));
-
+            static int sendSize = ZetaRFPacketMinLength-1;
+            if (++sendSize > ZetaRFPacketLength) {
+                sendSize = ZetaRFPacketMinLength;
+            }
+            
             txTime = micros();
-            if (!zeta.sendVariableLengthPacketOnChannel(4, (const uint8_t*)data, ZetaRFPacketLength)) {
+            if (!zeta.sendVariableLengthPacketOnChannel(4, (const uint8_t*)data, sendSize)) {
                 Serial.println("Failed to send!");
                 runTest = false;
+            } else {
+                txCount++;
+                
+                Serial.print("TX ");
+                Serial.print(sendSize);
+                Serial.print(" # ");
+                Serial.println(txCount);
             }
         }
         /*else if ((micros() - txTime) > 20000) {
@@ -183,6 +201,7 @@ void loop()
             if (!zeta.begin()) {
                 Serial.println(F("Zeta begin failed"));
             }
+            zeta.startListeningSinglePacketOnChannel(4);
         }
     }
 
