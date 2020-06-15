@@ -183,7 +183,7 @@ Note: FRR are used and enforced by the library (on begin()) to read module state
 ## License
 See LICENSE file.
 
-[1]: http://www.silabs.com/products/wireless/EZRadio/Pages/Si4455.aspx "Wireless Development Suite"
+[1]: https://www.silabs.com/wireless/proprietary/ezradio-sub-ghz-ics/device.si4455 "Wireless Development Suite"
 [2]: https://www.rfsolutions.co.uk/radio-modules-c10/name-c49/zeta-c86 "RF Solutions"
-[3]: http://www.silabs.com/products/wireless/EZRadio/Pages/Si4455.aspx "Si4455"
+[3]: https://www.silabs.com/wireless/proprietary/ezradio-sub-ghz-ics/device.si4455 "Si4455"
 
