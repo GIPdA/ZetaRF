@@ -391,7 +391,11 @@ public:
         return m_radio.succeeded() && (m_listeningChannel == newChannel);
     }
 
-    bool restartListeningSinglePacket() {
+    bool restartListeningSinglePacket()
+    {
+        if (!waitUntilOutOfTx(20))
+            return false;
+
         return startListeningSinglePacket(m_listeningChannel, m_packetLength);
     }
 
