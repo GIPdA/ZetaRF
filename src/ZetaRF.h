@@ -15,7 +15,7 @@ START_RX command with return state on timeout to RX may leave the chip unrespond
 
 #pragma once
 
-//#define ZETARF_DEBUG_ON
+#define ZETARF_DEBUG_ON
 
 #if defined(ZETARF_DEBUG_ON)
     #define debug(...)   Serial.print(__VA_ARGS__)
@@ -31,6 +31,7 @@ START_RX command with return state on timeout to RX may leave the chip unrespond
 
 #include "zetarf_radio.hpp"
 #include "ezradio_si4455.h"
+#include "ezradiopro_si446x.h"
 
 // Include other configs here
 #include "configs/config868_fixedlength_crc_preamble10_sync4_payload8.h"
@@ -38,6 +39,9 @@ START_RX command with return state on timeout to RX may leave the chip unrespond
 
 #include "configs/config868_variablelength_crc_preamble10_sync4_payload8.h"
 #include "configs/config433_variablelength_crc_preamble10_sync4_payload8.h"
+
+#include "configs/config433_4463_fixedlength_crc_preamble10_sync4_payload8.h"
+
 
 #include <stdint.h>
 
@@ -94,6 +98,11 @@ public:
     using RadioState = typename EZRadio::RadioState;
     using Event = ZetaRF::Event;
     using Events = ZetaRF::Events;
+	using EZRadioReply = typename EZRadio::EZRadioReply;
+
+    using PartInfo = typename EZRadioReply::PartInfo;
+    using FuncInfo = typename EZRadioReply::FuncInfo;
+
 
     Events checkForEvent()
     {
@@ -110,6 +119,7 @@ public:
     Events checkForAnyEventOf(Events filter)
     {
         if (m_radio.isIrqAsserted()) {
+            //Serial.println("irq");
             if (!readInterruptsToEvents())
                 return Event::DeviceBusy;
         }
@@ -244,7 +254,6 @@ public:
         // Start sending packet on channel, return to current state after transmit
         m_radio.startTx(channel,
                         static_cast<uint8_t>(txCompleteState),
-                        false, // retransmit
                         m_packetLength);
 
         return m_radio.succeeded();
@@ -296,7 +305,7 @@ public:
             return ZetaRF::ReadPacketResult::InvalidArgument;
 
         // Read FIFO info to known how many bytes are pending
-        EZRadioReply::FifoInfo const& fi = m_radio.readFifoInfo();
+        auto const& fi = m_radio.readFifoInfo();
         if (m_radio.failed())
             return ZetaRF::ReadPacketResult::RequestFailed;
 
@@ -310,7 +319,7 @@ public:
             return ZetaRF::ReadPacketResult::InvalidArgument;
 
         // Read FIFO info to known how many bytes are pending
-        EZRadioReply::FifoInfo fi = m_radio.readFifoInfo(); // Make a copy
+        auto fi = m_radio.readFifoInfo(); // Make a copy
         if (m_radio.failed())
             return ZetaRF::ReadPacketResult::RequestFailed;
 
@@ -362,7 +371,7 @@ public:
 
     uint8_t requestCurrentChannel()
     {
-        EZRadioReply::DeviceState const& ds {m_radio.readDeviceState()};
+        auto const& ds {m_radio.readDeviceState()};
         return m_radio.succeeded() ? ds.CURRENT_CHANNEL : 0;
     }
 
@@ -402,14 +411,14 @@ public:
     // Space left in TX FIFO
     uint8_t requestBytesAvailableInTxFifo()
     {
-        EZRadioReply::FifoInfo const& fi = m_radio.readFifoInfo();
+        auto const& fi = m_radio.readFifoInfo();
         return m_radio.succeeded() ? fi.TX_FIFO_SPACE : 0;
     }
 
     // Bytes stored in RX FIFO
     uint8_t requestBytesAvailableInRxFifo()
     {
-        EZRadioReply::FifoInfo const& fi = m_radio.readFifoInfo();
+        auto const& fi = m_radio.readFifoInfo();
         return m_radio.succeeded() ? fi.RX_FIFO_COUNT : 0;
     }
 
@@ -434,7 +443,7 @@ public:
     // Checks if the current state of the module seems correct.
     bool isAlive()
     {
-        EZRadioReply::DeviceState const& cs = m_radio.readDeviceState();
+        auto const& cs = m_radio.readDeviceState();
         return m_radio.succeeded() && (cs.CURR_STATE != 0) && (cs.CURR_STATE != 0xFF);// && cs.CURRENT_CHANNEL == m_listeningChannel);
     }
 
@@ -450,6 +459,12 @@ public:
     RadioState radioState()
     {
         return static_cast<RadioState>(m_radio.readFrrA().FRR_A_VALUE & 0x0F);
+    }
+
+    uint8_t requestDeviceState()
+    {
+        auto const& ds {m_radio.readDeviceState()};
+        return m_radio.succeeded() ? ds.CURR_STATE : 0;
     }
     
     /*static CONSTEXPR const char* radioStateText(RadioState state) {
@@ -478,11 +493,11 @@ public:
         delay(5);
     }
 
-    EZRadioReply::PartInfo const& readPartInformation() {
+    typename EZRadioReply::PartInfo const& readPartInformation() {
         return m_radio.readPartInformation();
     }
 
-    EZRadioReply::FuncInfo const& readFunctionRevisionInformation() {
+    typename EZRadioReply::FuncInfo const& readFunctionRevisionInformation() {
         return m_radio.readFunctionRevisionInformation();
     }
 
@@ -523,7 +538,7 @@ private:
     }
 
     //! Read a packet from RX FIFO, with size checks
-    ZetaRF::ReadPacketResult readPacket(EZRadioReply::FifoInfo const& fifoInfo, uint8_t* data, uint8_t byteCount)
+    ZetaRF::ReadPacketResult readPacket(typename EZRadioReply::FifoInfo const& fifoInfo, uint8_t* data, uint8_t byteCount)
     {
         bool const dataRemaining { (fifoInfo.RX_FIFO_COUNT > byteCount) };
 
@@ -626,16 +641,28 @@ private:
         if (events & Event::TxFifoAlmostEmpty) debugln("Packet IT: TX FIFO Almost Empty");
         if (events & Event::RxFifoAlmostFull) debugln("Packet IT: RX FIFO Almost Full");
 
-        //if (events & Event::InvalidSync) debugln("Modem IT: Invalid Sync");
-        //if (events & Event::InvalidPreamble) debugln("Modem IT: Invalid Preamble");
-        //if (events & Event::DetectedPreamble) debugln("Modem IT: Detected Preamble");
-        //if (events & Event::DetectedSync) debugln("Modem IT: Detected Sync");
+        if (events & Event::FilterMatch) debugln("Packet IT: FilterMatch");
+        if (events & Event::FilterMiss) debugln("Packet IT: FilterMiss");
+        if (events & Event::AlternateCrcError) debugln("Packet IT: AlternateCrcError");
+
+         if (events & Event::InvalidSync) debugln("Modem IT: Invalid Sync");
+         if (events & Event::InvalidPreamble) debugln("Modem IT: Invalid Preamble");
+         if (events & Event::DetectedPreamble) debugln("Modem IT: Detected Preamble");
+         if (events & Event::DetectedSync) debugln("Modem IT: Detected Sync");
         if (events & Event::LatchedRssi) debugln("Modem IT: RSSI Latched");
+
+        if (events & Event::DetectedPostamble) debugln("Modem IT: DetectedPostamble");
+        if (events & Event::RssiJump) debugln("Modem IT: RssiJump");
+        if (events & Event::Rssi) debugln("Modem IT: Rssi");
 
         if (events & Event::FifoUnderflowOrOverflowError) debugln("Chip IT: FIFO Underflow/Overflow");
         if (events & Event::CommandError) debugln("Chip IT: Command Error");
-        //if (events & Event::StateChange) debugln("Chip IT: State Change");
+         if (events & Event::StateChange) debugln("Chip IT: State Change");
         if (events & Event::ChipReady) debugln("Chip IT: Chip Ready");
+
+        if (events & Event::Calibration) debugln("Chip IT: Calibration");
+        if (events & Event::LowBattery) debugln("Chip IT: LowBattery");
+        if (events & Event::WakeUpTimerExpired) debugln("Chip IT: WakeUpTimerExpired");
     }
 
     inline void _clearEvents() {
@@ -753,6 +780,11 @@ using ZetaRF868 = ZetaRFConfig<ZetaRFConfigs::Config868_FixedLength_CRC_Preamble
 // Variable Length
 template<class ...Ts>
 using ZetaRF868_VL = ZetaRFConfig<ZetaRFConfigs::Config868_VariableLength_CRC_Preamble10_Sync4_Payload8, ZetaRFEZRadio::EZRadioSi4455<ZetaRFHal::ArduinoSpiHal<Ts...>> >;
+
+
+template<class ...Ts>
+using ZetaRF_DRF4463F_433 = ZetaRFConfig<ZetaRFConfigs::Config433_Si4463_FixedLength_CRC_Preamble10_Sync4_Payload8,
+                                         ZetaRFEZRadioPro::EZRadioProSi446x<ZetaRFHal::ArduinoSpiHal<Ts...>> >;
 
 
 /*

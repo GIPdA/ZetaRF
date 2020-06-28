@@ -266,7 +266,7 @@ union si4455_cmd_reply_union
 };
 
 
-namespace EZRadioReply {
+struct EZRadioReply_Si4455 {
 // Pretty names for reply packets
 typedef si4455_reply_FIFO_INFO_map      FifoInfo;
 typedef si4455_reply_GPIO_PIN_CFG_map   GpioPinConfig;
@@ -291,7 +291,7 @@ typedef si4455_reply_GET_CHIP_STATUS_map    ChipStatus;
 typedef si4455_reply_PACKET_INFO_map    PacketInfo;
 
 typedef si4455_cmd_reply_union CommandReplyUnion;
-}
+};
 
 #define SI4455_FIFO_SIZE 64
 

@@ -4,22 +4,22 @@
 
 #pragma once
 
-#include "ezradio_si4455_defs.h"
+#include "ezradiopro_si446x_defs.h"
 #include "zetarf_radio.hpp"
 #include "flags/flags.hpp"
 
 
-namespace ZetaRFEZRadio {
+namespace ZetaRFEZRadioPro {
 
 template<class Hal>
-class EZRadioSi4455
+class EZRadioProSi446x
 {	
 public:
 	using Event = ZetaRF::Event;
 	using Events = ZetaRF::Events;
-	using EZRadioReply = EZRadioReply_Si4455;
+	using EZRadioReply = EZRadioReply_Si446x;
 
-	enum class RadioState
+	enum class RadioState : uint8_t
 	{ // From EZRadio API
 		Invalid     = 0,
 		Sleep       = 1,
@@ -32,6 +32,7 @@ public:
 		Rx          = 8,
 		Unknown     = 9
 	};
+	
 	/*static const char* radioStateText(RadioState state) {
         switch (state) {
             case RadioState::Sleep: return "Sleep";
@@ -61,6 +62,28 @@ public:
         }
     }//*/
 
+	enum class StartTxOption_Update : uint8_t {
+		UseTxParametersNow     = 0, // Use TX parameters to enter TX mode.
+		UpdateTxParametersOnly = 1  // Update TX parameters (to be used by a subsequent packet) but do not enter TX mode.
+	};
+	enum class StartTxOption_ReTransmit : uint8_t {
+		SendDataFromTxFifo = 0, // Send data that has been written to the TX FIFO. If the TX FIFO is empty, a FIFO underflow interrupt will occur.
+		SendLastPacket     = 1  // Send last packet again (do not write FIFO).
+	};
+	enum class StartTxOption_Start : uint8_t {
+		Immediate               = 0, // Start TX immediately.
+		OnWakeUpTimerExpiration = 1  // Start TX upon expiration of the Wake-Up Timer.
+	};
+
+	uint8_t _cast(StartTxOption_Update update) {
+		return static_cast<uint8_t>(update);
+	}
+	uint8_t _cast(StartTxOption_ReTransmit retransmit) {
+		return static_cast<uint8_t>(retransmit);
+	}
+	uint8_t _cast(StartTxOption_Start start) {
+		return static_cast<uint8_t>(start);
+	}
 
 	bool failed() const {
 		return m_deviceBusy;
@@ -104,30 +127,10 @@ public:
 
 			uint8_t cmdBytesCount = *configArray++;
 
-			if (cmdBytesCount > 16u) { // EZConfig
-				// Initial configuration of Si4x55
-				if (*configArray == SI4455_CMD_ID_WRITE_TX_FIFO) {
-					if (cmdBytesCount > 128u) {
-						// Number of command bytes exceeds maximal allowable length
-						// @todo May need to send NOP to send more than 128 bytes (check documentation)
-						//debugln("Init failed: Command bytes exceeds 128 bytes");
-						return false;
-					}
-
-					// Load array to the device
-					configArray++;
-					writeEZConfigArray(configArray, cmdBytesCount - 1);
-
-					// Point to the next command
-					configArray += cmdBytesCount - 1;
-
-					// Continue command interpreter
-					continue;
-				} else {
-					// Number of command bytes exceeds maximal allowable length
-					//debugln("Init failed: Command bytes exceeds max");
-					return false;
-				}
+			if (cmdBytesCount > 16u) {
+				// Number of command bytes exceeds maximal allowable length
+				//debugln("Init failed: Command bytes exceeds max");
+				return false;
 			}
 
 			// Non-EZConfig command
@@ -144,20 +147,11 @@ public:
 				return false;
 			}
 
-			// Check response byte for EZCONFIG_CHECK command
-			if (radioCmd[0] == SI4455_CMD_ID_EZCONFIG_CHECK) {
-				if (response != SI4455_CMD_EZCONFIG_CHECK_REP_RESULT_ENUM_VALID) {
-					// EZConfig failed, either SI4455_CMD_EZCONFIG_CHECK_REP_RESULT_ENUM_BAD_CHECKSUM or SI4455_CMD_EZCONFIG_CHECK_REP_RESULT_ENUM_INVALID_STATE
-					//debugln("Init failed: EZConfig Check error");
-					return false;
-				}
-			}
-
 			if (m_hal.isIrqAsserted()) {
 				// Get and clear all interrupts. An error has occured...
 				_cleanCommandBuffer();
 				EZRadioReply::InterruptStatus const& it = readAndClearInterruptStatus();
-				if (it.CHIP_PEND & SI4455_CMD_GET_CHIP_STATUS_REP_CMD_ERROR_PEND_MASK) {
+				if (it.CHIP_PEND & SI446X_CMD_GET_CHIP_STATUS_REP_CHIP_PEND_CMD_ERROR_PEND_MASK) {
 					// Command error
 					//debugln("Init failed: Command Error");
 					return false;
@@ -167,29 +161,41 @@ public:
 		return true;
 	}
 
-	//! Writes data byte(s) to the EZConfig array (array generated from EZConfig tool).
-	bool writeEZConfigArray(uint8_t const* ezConfigArray, uint8_t count) {
-		return sendCommand(SI4455_CMD_ID_WRITE_TX_FIFO, ezConfigArray, count);
+	//! This function is used to initialize after power-up the radio chip.
+	//! Before this function reset should be called.
+	void powerUp(uint8_t bootOptions, uint8_t xtalOptions, uint32_t xOFreq)
+	{
+		uint8_t const buffer[] = {
+			SI446X_CMD_ID_POWER_UP,
+			bootOptions,
+			xtalOptions,
+			(uint8_t)(xOFreq >> 24),
+			(uint8_t)(xOFreq >> 16),
+			(uint8_t)(xOFreq >> 8),
+			(uint8_t)(xOFreq >> 0),
+		};
+
+		sendCommand(buffer, SI446X_CMD_ARG_COUNT_POWER_UP);
 	}
 
 	//! Reads data byte(s) from the current position in RX FIFO. Returns false on error. Doesn't need CTS
 	void readRxFifo(uint8_t* data, uint8_t length) {
-		readCommandWithoutClearToSend(SI4455_CMD_ID_READ_RX_FIFO, data, length);
+		readCommandWithoutClearToSend(SI446X_CMD_ID_READ_RX_FIFO, data, length);
 	}
 	//! Writes data byte(s) to the TX FIFO. Doesn't need CTS
 	void writeTxFifo(const uint8_t* data, uint8_t length) {
-		sendCommandWithoutClearToSend(SI4455_CMD_ID_WRITE_TX_FIFO, data, length);
+		sendCommandWithoutClearToSend(SI446X_CMD_ID_WRITE_TX_FIFO, data, length);
 	}
 	//! Writes data byte(s) to the TX FIFO. Doesn't need CTS
 	void writeTxFifoWithZeros(uint8_t length) {
-		sendZeroedCommandWithoutClearToSend(SI4455_CMD_ID_WRITE_TX_FIFO, length);
+		sendZeroedCommandWithoutClearToSend(SI446X_CMD_ID_WRITE_TX_FIFO, length);
 	}
 
 	//! Switches to RX state and starts reception of a packet.
 	void startRx(uint8_t channel, uint8_t condition, uint16_t length, uint8_t nextState1, uint8_t nextState2, uint8_t nextState3)
 	{
 		uint8_t const buffer[] = {
-			SI4455_CMD_ID_START_RX,
+			SI446X_CMD_ID_START_RX,
 			channel,
 			condition,
 			(uint8_t)(length >> 8),
@@ -199,87 +205,160 @@ public:
 			nextState3
 		};
 
-		sendCommand(buffer, SI4455_CMD_ARG_COUNT_START_RX);
+		sendCommand(buffer, SI446X_CMD_ARG_COUNT_START_RX);
 	}
 
 	void startRx(uint8_t channel, uint8_t condition, uint16_t length)
 	{
 		// No changes to next states, avoid sending the extra 3 bytes
 		uint8_t const buffer[] = {
-			SI4455_CMD_ID_START_RX,
+			SI446X_CMD_ID_START_RX,
 			channel,
 			condition,
 			(uint8_t)(length >> 8),
 			(uint8_t)(length)
 		};
 
-		sendCommand(buffer, SI4455_CMD_ARG_COUNT_START_RX-3);
+		sendCommand(buffer, SI446X_CMD_ARG_COUNT_START_RX-3);
+	}
+
+	void startRxWithPreviousParameters()
+	{
+		// Use the last settings
+		uint8_t const buffer[] = {
+			SI446X_CMD_ID_START_RX
+		};
+
+		sendCommand(buffer, 1);
 	}
 
 	//! Switches to TX state and starts transmission of a packet.
-	void startTx(uint8_t channel, uint8_t txCompleteState, uint16_t length, bool retransmit = false)
+	void startTx(uint8_t channel, uint8_t txCompleteState, uint16_t length,
+				 StartTxOption_ReTransmit retransmit = StartTxOption_ReTransmit::SendDataFromTxFifo,
+				 uint8_t delayBetweenRetransmitPackets_us = 0,
+				 uint8_t retransmitRepeatCount = 0,
+				 StartTxOption_Update update = StartTxOption_Update::UseTxParametersNow,
+				 StartTxOption_Start start = StartTxOption_Start::Immediate)
 	{
 		const uint8_t buffer[] = {
-			SI4455_CMD_ID_START_TX,
+			SI446X_CMD_ID_START_TX,
 			channel,
-			uint8_t(((txCompleteState&0x0F) << SI4455_CMD_START_TX_ARG_TXCOMPLETE_STATE_LSB)
-			        | (retransmit ? (1 << SI4455_CMD_START_TX_ARG_RETRANSMIT_LSB) : 0)),
+			uint8_t(((txCompleteState&0x0F) << SI446X_CMD_START_TX_ARG_CONDITION_TXCOMPLETE_STATE_LSB)
+					| (_cast(update) << SI446X_CMD_START_TX_ARG_CONDITION_UPDATE_LSB)
+			        | (_cast(retransmit) << SI446X_CMD_START_TX_ARG_CONDITION_RETRANSMIT_LSB)
+					| (_cast(start) << SI446X_CMD_START_TX_ARG_CONDITION_START_ENUM_IMMEDIATE)
+					),
 			uint8_t((length&0x1FFF) >> 8),
-			uint8_t(length)
+			uint8_t(length),
+			delayBetweenRetransmitPackets_us, // Delay (in usec) between packet retransmissions
+			retransmitRepeatCount  // The number of times to repeat the packet.
 		};
 
-		sendCommand(buffer, SI4455_CMD_ARG_COUNT_START_TX);
+		sendCommand(buffer, SI446X_CMD_ARG_COUNT_START_TX);
+	}
+
+	//! Start TX for packet retransmission
+	void startTxRepeat(uint8_t channel, uint8_t txCompleteState, uint16_t length,
+				 StartTxOption_ReTransmit retransmit,
+				 uint8_t delayBetweenPacket_us,
+				 uint8_t repeatCount)
+	{
+		const uint8_t buffer[] = {
+			SI446X_CMD_ID_START_TX,
+			channel,
+			uint8_t(((txCompleteState&0x0F) << SI446X_CMD_START_TX_ARG_CONDITION_TXCOMPLETE_STATE_LSB)
+					| (SI446X_CMD_START_TX_ARG_CONDITION_UPDATE_ENUM_USE << SI446X_CMD_START_TX_ARG_CONDITION_UPDATE_LSB)
+			        | (_cast(retransmit) << SI446X_CMD_START_TX_ARG_CONDITION_RETRANSMIT_LSB)
+					| (SI446X_CMD_START_TX_ARG_CONDITION_START_ENUM_IMMEDIATE << SI446X_CMD_START_TX_ARG_CONDITION_START_ENUM_IMMEDIATE)
+					),
+			uint8_t((length&0x1FFF) >> 8),
+			uint8_t(length),
+			delayBetweenPacket_us, // Delay (in usec) between packet retransmissions
+			repeatCount  // The number of times to repeat the packet.
+		};
+
+		sendCommand(buffer, SI446X_CMD_ARG_COUNT_START_TX);
 	}
 
 	EZRadioReply::DeviceState const& readDeviceState()
 	{
 		uint8_t const buffer[] = {
-			SI4455_CMD_ID_REQUEST_DEVICE_STATE
+			SI446X_CMD_ID_REQUEST_DEVICE_STATE
 		};
 
-		sendCommandAndReadResponse(buffer, SI4455_CMD_ARG_COUNT_REQUEST_DEVICE_STATE,
-								m_commandReply.RAW, SI4455_CMD_REPLY_COUNT_REQUEST_DEVICE_STATE);
+		sendCommandAndReadResponse(buffer, SI446X_CMD_ARG_COUNT_REQUEST_DEVICE_STATE,
+								   m_commandReply.RAW, SI446X_CMD_REPLY_COUNT_REQUEST_DEVICE_STATE);
 		return m_commandReply.REQUEST_DEVICE_STATE;
 
-		// Si4455Cmd.REQUEST_DEVICE_STATE.CURR_STATE       = radioCmd[0];
-		// Si4455Cmd.REQUEST_DEVICE_STATE.CURRENT_CHANNEL  = radioCmd[1];
+		// Si446xCmd.REQUEST_DEVICE_STATE.CURR_STATE       = radioCmd[0];
+		// Si446xCmd.REQUEST_DEVICE_STATE.CURRENT_CHANNEL  = radioCmd[1];
 	}
 
 	//! Manually switch the chip to a desired operating state.
 	void changeState(uint8_t nextState)
 	{
 		uint8_t const buffer[] = {
-			SI4455_CMD_ID_CHANGE_STATE,
+			SI446X_CMD_ID_CHANGE_STATE,
 			nextState
 		};
 
-		sendCommand(buffer, SI4455_CMD_ARG_COUNT_CHANGE_STATE);
+		sendCommand(buffer, SI446X_CMD_ARG_COUNT_CHANGE_STATE);
 	}
+
+
+	//! While in RX state this will hop to the frequency specified by the parameters and start searching for a preamble.
+	void rxHop(uint8_t inte, uint8_t frac2, uint8_t frac1, uint8_t frac0, uint8_t vc0_cnt1, uint8_t vc0_cnt0)
+	{
+		uint8_t const buffer[] = {
+			SI446X_CMD_ID_RX_HOP,
+			inte,
+			frac2,
+			frac1,
+			frac0,
+			vc0_cnt1,
+			vc0_cnt0
+		};
+
+		sendCommand(buffer, SI446X_CMD_ARG_COUNT_RX_HOP);
+	}
+
+	//! While in TX state this will hop to the frequency specified by the parameters.
+	void txHop(uint8_t inte, uint8_t frac2, uint8_t frac1, uint8_t frac0, uint8_t vc0_cnt1, uint8_t vc0_cnt0,
+			   uint8_t pll_settle_time1, uint8_t pll_settle_time0)
+	{
+		uint8_t const buffer[] = {
+			SI446X_CMD_ID_TX_HOP,
+			inte,
+			frac2,
+			frac1,
+			frac0,
+			vc0_cnt1,
+			vc0_cnt0,
+			pll_settle_time1,
+			pll_settle_time0
+		};
+
+		sendCommand(buffer, SI446X_CMD_ARG_COUNT_TX_HOP);
+	}
+
 
 	//! Returns the interrupt status of ALL the possible interrupt events (both STATUS and PENDING).
 	//! Optionally, it may be used to clear latched (PENDING) interrupt events (set bit to 0 in the corresponding clear mask argument).
-	EZRadioReply::InterruptStatus const& readInterruptStatus(uint8_t pendingPacketHandlerIntsClearMask, uint8_t pendingModemIntsClearMask, uint8_t pendingChipIntsClearMask)
+	EZRadioReply::InterruptStatus const& readInterruptStatus(uint8_t pendingPacketHandlerIntsClearMask,
+															 uint8_t pendingModemIntsClearMask,
+															 uint8_t pendingChipIntsClearMask)
 	{
 		uint8_t const buffer[] = {
-			SI4455_CMD_ID_GET_INT_STATUS,
+			SI446X_CMD_ID_GET_INT_STATUS,
 			pendingPacketHandlerIntsClearMask,
 			pendingModemIntsClearMask,
 			pendingChipIntsClearMask
 		};
 
-		sendCommandAndReadResponse(buffer, SI4455_CMD_ARG_COUNT_GET_INT_STATUS,
-								m_commandReply.RAW, SI4455_CMD_REPLY_COUNT_GET_INT_STATUS);
+		sendCommandAndReadResponse(buffer, SI446X_CMD_ARG_COUNT_GET_INT_STATUS,
+								   m_commandReply.RAW, SI446X_CMD_REPLY_COUNT_GET_INT_STATUS);
 
 		return m_commandReply.GET_INT_STATUS;
-
-		// m_commandReply.GET_INT_STATUS.INT_PEND       = radioCmd[0];
-		// m_commandReply.GET_INT_STATUS.INT_STATUS     = radioCmd[1];
-		// m_commandReply.GET_INT_STATUS.PH_PEND        = radioCmd[2];
-		// m_commandReply.GET_INT_STATUS.PH_STATUS      = radioCmd[3];
-		// m_commandReply.GET_INT_STATUS.MODEM_PEND     = radioCmd[4];
-		// m_commandReply.GET_INT_STATUS.MODEM_STATUS   = radioCmd[5];
-		// m_commandReply.GET_INT_STATUS.CHIP_PEND      = radioCmd[6];
-		// m_commandReply.GET_INT_STATUS.CHIP_STATUS    = radioCmd[7];
 	}
 
 	EZRadioReply::InterruptStatus const& readAndClearInterruptStatus() {
@@ -289,135 +368,128 @@ public:
 	void clearAllPendingInterrupts()
 	{
 		uint8_t const buffer[] = {
-			SI4455_CMD_ID_GET_INT_STATUS,
+			SI446X_CMD_ID_GET_INT_STATUS,
 			/*0x00, // Don't send parameters = IT clear
 			0x00,
 			0x00//*/
 		};
 
-		sendCommand(buffer, SI4455_CMD_ARG_COUNT_GET_INT_STATUS-3);
+		sendCommand(buffer, 1);
 	}
 
 	void clearPendingInterrupts(uint8_t pendingPacketHandlerIntsClearMask, uint8_t pendingModemIntsClearMask, uint8_t pendingChipIntsClearMask)
 	{
 		uint8_t const buffer[] = {
-			SI4455_CMD_ID_GET_INT_STATUS,
+			SI446X_CMD_ID_GET_INT_STATUS,
 			pendingPacketHandlerIntsClearMask,
 			pendingModemIntsClearMask,
 			pendingChipIntsClearMask
 		};
 
-		sendCommand(buffer, SI4455_CMD_ARG_COUNT_GET_INT_STATUS);
+		sendCommand(buffer, SI446X_CMD_REPLY_COUNT_GET_INT_STATUS);
 	}
 
 	//!  Reads the fast response registers (FRR) starting with FRR_A.
 	EZRadioReply::FrrA const& readFrrA(uint8_t registersToRead = 1)
 	{
-		readCommandWithoutClearToSend(SI4455_CMD_ID_FRR_A_READ,
-									m_commandReply.RAW,
-									registersToRead);
+		readCommandWithoutClearToSend(SI446X_CMD_ID_FRR_A_READ,
+									  m_commandReply.RAW,
+									  registersToRead);
 		return m_commandReply.FRR_A_READ;
-
-		// Si4455Cmd.FRR_A_READ.FRR_A_VALUE = radioCmd[0];
-		// Si4455Cmd.FRR_A_READ.FRR_B_VALUE = radioCmd[1];
-		// Si4455Cmd.FRR_A_READ.FRR_C_VALUE = radioCmd[2];
-		// Si4455Cmd.FRR_A_READ.FRR_D_VALUE = radioCmd[3];
 	}
 
 	//! Reads the fast response registers (FRR) starting with FRR_B.
 	EZRadioReply::FrrB const& readFrrB(uint8_t registersToRead = 1)
 	{
-		readCommandWithoutClearToSend(SI4455_CMD_ID_FRR_B_READ,
-									m_commandReply.RAW,
-									registersToRead);
+		readCommandWithoutClearToSend(SI446X_CMD_ID_FRR_B_READ,
+									  m_commandReply.RAW,
+									  registersToRead);
 		return m_commandReply.FRR_B_READ;
-
-		// Si4455Cmd.FRR_B_READ.FRR_B_VALUE = radioCmd[0];
-		// Si4455Cmd.FRR_B_READ.FRR_C_VALUE = radioCmd[1];
-		// Si4455Cmd.FRR_B_READ.FRR_D_VALUE = radioCmd[2];
-		// Si4455Cmd.FRR_B_READ.FRR_A_VALUE = radioCmd[3];
 	}
 	//! Reads the fast response registers (FRR) starting with FRR_C.
 	EZRadioReply::FrrC const& readFrrC(uint8_t registersToRead = 1)
 	{
-		readCommandWithoutClearToSend(SI4455_CMD_ID_FRR_C_READ,
-									m_commandReply.RAW,
-									registersToRead);
+		readCommandWithoutClearToSend(SI446X_CMD_ID_FRR_C_READ,
+									  m_commandReply.RAW,
+									  registersToRead);
 		return m_commandReply.FRR_C_READ;
-
-		// Si4455Cmd.FRR_C_READ.FRR_C_VALUE = radioCmd[0];
-		// Si4455Cmd.FRR_C_READ.FRR_D_VALUE = radioCmd[1];
-		// Si4455Cmd.FRR_C_READ.FRR_A_VALUE = radioCmd[2];
-		// Si4455Cmd.FRR_C_READ.FRR_B_VALUE = radioCmd[3];
 	}
-
 	//! Reads the fast response registers (FRR) starting with FRR_D.
 	EZRadioReply::FrrD const& readFrrD(uint8_t registersToRead = 1)
 	{
-		readCommandWithoutClearToSend(SI4455_CMD_ID_FRR_D_READ,
-									m_commandReply.RAW,
-									registersToRead);
+		readCommandWithoutClearToSend(SI446X_CMD_ID_FRR_D_READ,
+									  m_commandReply.RAW,
+									  registersToRead);
 		return m_commandReply.FRR_D_READ;
-
-		// Si4455Cmd.FRR_D_READ.FRR_D_VALUE = radioCmd[0];
-		// Si4455Cmd.FRR_D_READ.FRR_A_VALUE = radioCmd[1];
-		// Si4455Cmd.FRR_D_READ.FRR_B_VALUE = radioCmd[2];
-		// Si4455Cmd.FRR_D_READ.FRR_C_VALUE = radioCmd[3];
 	}
 
+	//! Sends NOP command. Can be used to maintain SPI communication.
 	void noOperation()
 	{
 		uint8_t const buffer[] = {
-			SI4455_CMD_ID_NOP
+			SI446X_CMD_ID_NOP
 		};
 
-		sendCommand(buffer, SI4455_CMD_ARG_COUNT_NOP);
+		sendCommand(buffer, SI446X_CMD_ARG_COUNT_NOP);
 	}
 
 	void resetRxAndTxFifo()
 	{
 		uint8_t const buffer[] = {
-			SI4455_CMD_ID_FIFO_INFO,
+			SI446X_CMD_ID_FIFO_INFO,
 			0x03
 		};
 
-		sendCommand(buffer, SI4455_CMD_ARG_COUNT_FIFO_INFO);
+		sendCommand(buffer, SI446X_CMD_ARG_COUNT_FIFO_INFO);
 	}
 
 	void resetRxFifo()
 	{
 		uint8_t const buffer[] = {
-			SI4455_CMD_ID_FIFO_INFO,
+			SI446X_CMD_ID_FIFO_INFO,
 			0x02
 		};
 
-		sendCommand(buffer, SI4455_CMD_ARG_COUNT_FIFO_INFO);
+		sendCommand(buffer, SI446X_CMD_ARG_COUNT_FIFO_INFO);
 	}
 
 	void resetTxFifo()
 	{
 		uint8_t const buffer[] = {
-			SI4455_CMD_ID_FIFO_INFO,
+			SI446X_CMD_ID_FIFO_INFO,
 			0x01
 		};
 
-		sendCommand(buffer, SI4455_CMD_ARG_COUNT_FIFO_INFO);
+		sendCommand(buffer, SI446X_CMD_ARG_COUNT_FIFO_INFO);
 	}
 
 	//! Access the current byte counts in the TX and RX FIFOs, and provide for resetting the FIFOs (see doc).
-	EZRadioReply::FifoInfo const& readFifoInfo(uint8_t fifoResetMask = 0)
+	EZRadioReply::FifoInfo const& readFifoInfo()
 	{
 		uint8_t const buffer[] = {
-			SI4455_CMD_ID_FIFO_INFO,
+			SI446X_CMD_ID_FIFO_INFO
+		};
+
+		sendCommandAndReadResponse(buffer, 1,
+								   m_commandReply.RAW, SI446X_CMD_REPLY_COUNT_FIFO_INFO);
+		return m_commandReply.FIFO_INFO;
+
+		// m_commandReply.FIFO_INFO.RX_FIFO_COUNT   = radioCmd[0];
+		// m_commandReply.FIFO_INFO.TX_FIFO_SPACE   = radioCmd[1];
+	}
+	EZRadioReply::FifoInfo const& readFifoInfo(uint8_t fifoResetMask)
+	{
+		uint8_t const buffer[] = {
+			SI446X_CMD_ID_FIFO_INFO,
 			fifoResetMask
 		};
 
-		sendCommandAndReadResponse(buffer, SI4455_CMD_ARG_COUNT_FIFO_INFO,
-								m_commandReply.RAW, SI4455_CMD_REPLY_COUNT_FIFO_INFO);
+		sendCommandAndReadResponse(buffer, SI446X_CMD_ARG_COUNT_FIFO_INFO,
+								   m_commandReply.RAW, SI446X_CMD_REPLY_COUNT_FIFO_INFO);
 		return m_commandReply.FIFO_INFO;
 
-		// Si4455Cmd.FIFO_INFO.RX_FIFO_COUNT   = radioCmd[0];
-		// Si4455Cmd.FIFO_INFO.TX_FIFO_SPACE   = radioCmd[1];
+		// m_commandReply.FIFO_INFO.RX_FIFO_COUNT   = radioCmd[0];
+		// m_commandReply.FIFO_INFO.TX_FIFO_SPACE   = radioCmd[1];
 	}
 
 	//! Returns information about the length of the variable field in the last packet received.
@@ -427,19 +499,19 @@ public:
 	}
 
 	//! Returns information about the length of the variable field in the last packet received, and (optionally) overrides field length.
-	EZRadioReply::PacketInfo const& readPacketInfo(uint8_t fieldNum, uint16_t length, uint16_t lenDiff)
+	EZRadioReply::PacketInfo const& readPacketInfo(uint8_t fieldNum, uint16_t length, int16_t lenDiff)
 	{
 		uint8_t const buffer[] = {
-			SI4455_CMD_ID_PACKET_INFO,
+			SI446X_CMD_ID_PACKET_INFO,
 			(uint8_t)(fieldNum & 0x1F),
 			(uint8_t)(length >> 8),
 			(uint8_t)(length),
-			(uint8_t)(lenDiff >> 8),
+			(uint8_t)(uint16_t(lenDiff) >> 8),
 			(uint8_t)(lenDiff)
 		};
 
-		sendCommandAndReadResponse(buffer, (fieldNum == 0 ? 1 : 6),
-								m_commandReply.RAW, 2);
+		sendCommandAndReadResponse(buffer, SI446X_CMD_ARG_COUNT_PACKET_INFO,
+								   m_commandReply.RAW, SI446X_CMD_REPLY_COUNT_PACKET_INFO);
 		return m_commandReply.PACKET_INFO;
 	}
 
@@ -448,29 +520,12 @@ public:
 	EZRadioReply::CommandBuffer const& readCommandBuffer()
 	{
 		uint8_t const buffer[] = {
-			SI4455_CMD_ID_READ_CMD_BUFF
+			SI446X_CMD_ID_READ_CMD_BUFF
 		};
 
-		sendCommandAndReadResponse(buffer, SI4455_CMD_ARG_COUNT_READ_CMD_BUFF,
-								m_commandReply.RAW, SI4455_CMD_REPLY_COUNT_READ_CMD_BUFF);
+		sendCommandAndReadResponse(buffer, SI446X_CMD_ARG_COUNT_READ_CMD_BUFF,
+								   m_commandReply.RAW, SI446X_CMD_REPLY_COUNT_READ_CMD_BUFF);
 		return m_commandReply.READ_CMD_BUFF;
-
-		// Si4455Cmd.READ_CMD_BUFF.CMD_BUFF0   = radioCmd[0];
-		// Si4455Cmd.READ_CMD_BUFF.CMD_BUFF1   = radioCmd[1];
-		// Si4455Cmd.READ_CMD_BUFF.CMD_BUFF2   = radioCmd[2];
-		// Si4455Cmd.READ_CMD_BUFF.CMD_BUFF3   = radioCmd[3];
-		// Si4455Cmd.READ_CMD_BUFF.CMD_BUFF4   = radioCmd[4];
-		// Si4455Cmd.READ_CMD_BUFF.CMD_BUFF5   = radioCmd[5];
-		// Si4455Cmd.READ_CMD_BUFF.CMD_BUFF6   = radioCmd[6];
-		// Si4455Cmd.READ_CMD_BUFF.CMD_BUFF7   = radioCmd[7];
-		// Si4455Cmd.READ_CMD_BUFF.CMD_BUFF8   = radioCmd[8];
-		// Si4455Cmd.READ_CMD_BUFF.CMD_BUFF9   = radioCmd[9];
-		// Si4455Cmd.READ_CMD_BUFF.CMD_BUFF10  = radioCmd[10];
-		// Si4455Cmd.READ_CMD_BUFF.CMD_BUFF11  = radioCmd[11];
-		// Si4455Cmd.READ_CMD_BUFF.CMD_BUFF12  = radioCmd[12];
-		// Si4455Cmd.READ_CMD_BUFF.CMD_BUFF13  = radioCmd[13];
-		// Si4455Cmd.READ_CMD_BUFF.CMD_BUFF14  = radioCmd[14];
-		// Si4455Cmd.READ_CMD_BUFF.CMD_BUFF15  = radioCmd[15];
 	}
 
 
@@ -478,32 +533,15 @@ public:
 	EZRadioReply::Properties const& readProperties(uint8_t group, uint8_t startPropertyIndex, uint8_t propertyCount)
 	{
 		uint8_t const buffer[] = {
-			SI4455_CMD_ID_GET_PROPERTY,
+			SI446X_CMD_ID_GET_PROPERTY,
 			group,
 			propertyCount,
 			startPropertyIndex
 		};
 
-		sendCommandAndReadResponse(buffer, SI4455_CMD_ARG_COUNT_GET_PROPERTY,
+		sendCommandAndReadResponse(buffer, SI446X_CMD_ARG_COUNT_GET_PROPERTY,
 								   m_commandReply.RAW, propertyCount);
 		return m_commandReply.GET_PROPERTY;
-
-		// Si4455Cmd.GET_PROPERTY.DATA0    = radioCmd[0];
-		// Si4455Cmd.GET_PROPERTY.DATA1    = radioCmd[1];
-		// Si4455Cmd.GET_PROPERTY.DATA2    = radioCmd[2];
-		// Si4455Cmd.GET_PROPERTY.DATA3    = radioCmd[3];
-		// Si4455Cmd.GET_PROPERTY.DATA4    = radioCmd[4];
-		// Si4455Cmd.GET_PROPERTY.DATA5    = radioCmd[5];
-		// Si4455Cmd.GET_PROPERTY.DATA6    = radioCmd[6];
-		// Si4455Cmd.GET_PROPERTY.DATA7    = radioCmd[7];
-		// Si4455Cmd.GET_PROPERTY.DATA8    = radioCmd[8];
-		// Si4455Cmd.GET_PROPERTY.DATA9    = radioCmd[9];
-		// Si4455Cmd.GET_PROPERTY.DATA10   = radioCmd[10];
-		// Si4455Cmd.GET_PROPERTY.DATA11   = radioCmd[11];
-		// Si4455Cmd.GET_PROPERTY.DATA12   = radioCmd[12];
-		// Si4455Cmd.GET_PROPERTY.DATA13   = radioCmd[13];
-		// Si4455Cmd.GET_PROPERTY.DATA14   = radioCmd[14];
-		// Si4455Cmd.GET_PROPERTY.DATA15   = radioCmd[15];
 	}
 
 	//! Sets the value of one or more properties. Max property count is 12.
@@ -512,7 +550,7 @@ public:
 								uint8_t data7=0, uint8_t data8=0, uint8_t data9=0, uint8_t data10=0, uint8_t data11=0, uint8_t data12=0)
 	{
 		const uint8_t buffer[] = {    // No more than 12 properties allowed
-				SI4455_CMD_ID_SET_PROPERTY,
+				SI446X_CMD_ID_SET_PROPERTY,
 				propertyGroup,
 				propertyCount,
 				startPropertyIndex,
@@ -565,7 +603,7 @@ public:
 		va_list argList;
 
 		uint8_t buffer[16] = {    // No more than 12 properties allowed
-			SI4455_CMD_ID_SET_PROPERTY,
+			SI446X_CMD_ID_SET_PROPERTY,
 			group,
 			count,
 			propertyIndex,
@@ -591,16 +629,30 @@ public:
 	EZRadioReply::PhStatus const& readPacketHandlerStatus(uint8_t pendingPacketHandlerIntsClearMask = 0xFF)
 	{
 		uint8_t const buffer[] = {
-			SI4455_CMD_ID_GET_PH_STATUS,
+			SI446X_CMD_ID_GET_PH_STATUS,
 			pendingPacketHandlerIntsClearMask
 		};
 
-		sendCommandAndReadResponse(buffer, SI4455_CMD_ARG_COUNT_GET_PH_STATUS,
-								m_commandReply.RAW, SI4455_CMD_REPLY_COUNT_GET_PH_STATUS);
+		sendCommandAndReadResponse(buffer, SI446X_CMD_ARG_COUNT_GET_PH_STATUS,
+								   m_commandReply.RAW, SI446X_CMD_REPLY_COUNT_GET_PH_STATUS);
 		return m_commandReply.GET_PH_STATUS;
+	}
+	EZRadioReply::PhStatus const& readAndClearPacketHandlerStatus()
+	{
+		uint8_t const buffer[] = {
+			SI446X_CMD_ID_GET_PH_STATUS
+		};
 
-		// Si4455Cmd.GET_PH_STATUS.PH_PEND        = radioCmd[0];
-		// Si4455Cmd.GET_PH_STATUS.PH_STATUS      = radioCmd[1];
+		sendCommandAndReadResponse(buffer, 1,
+								   m_commandReply.RAW, SI446X_CMD_REPLY_COUNT_GET_PH_STATUS);
+		return m_commandReply.GET_PH_STATUS;
+	}
+	void clearPacketHandlerStatus()
+	{
+		uint8_t const buffer[] = {
+			SI446X_CMD_ID_GET_PH_STATUS
+		};
+		sendCommand(buffer, 1);
 	}
 
 	//! Returns the interrupt status of the Modem Interrupt Group (both STATUS and PENDING).
@@ -608,22 +660,30 @@ public:
 	EZRadioReply::ModemStatus const& readModemStatus(uint8_t pendingModemIntsClearMask = 0xFF)
 	{
 		uint8_t const buffer[] = {
-			SI4455_CMD_ID_GET_MODEM_STATUS,
+			SI446X_CMD_ID_GET_MODEM_STATUS,
 			pendingModemIntsClearMask
 		};
 
-		sendCommandAndReadResponse(buffer, SI4455_CMD_ARG_COUNT_GET_MODEM_STATUS,
-								m_commandReply.RAW, SI4455_CMD_REPLY_COUNT_GET_MODEM_STATUS);
+		sendCommandAndReadResponse(buffer, SI446X_CMD_ARG_COUNT_GET_MODEM_STATUS,
+								   m_commandReply.RAW, SI446X_CMD_REPLY_COUNT_GET_MODEM_STATUS);
 		return m_commandReply.GET_MODEM_STATUS;
+	}
+	EZRadioReply::ModemStatus const& readAndClearModemStatus()
+	{
+		uint8_t const buffer[] = {
+			SI446X_CMD_ID_GET_MODEM_STATUS
+		};
 
-		// Si4455Cmd.GET_MODEM_STATUS.MODEM_PEND   = radioCmd[0];
-		// Si4455Cmd.GET_MODEM_STATUS.MODEM_STATUS = radioCmd[1];
-		// Si4455Cmd.GET_MODEM_STATUS.CURR_RSSI    = radioCmd[2];
-		// Si4455Cmd.GET_MODEM_STATUS.LATCH_RSSI   = radioCmd[3];
-		// Si4455Cmd.GET_MODEM_STATUS.ANT1_RSSI    = radioCmd[4];
-		// Si4455Cmd.GET_MODEM_STATUS.ANT2_RSSI    = radioCmd[5];
-		// Si4455Cmd.GET_MODEM_STATUS.AFC_FREQ_OFFSET.U8[MSB]  = radioCmd[6];
-		// Si4455Cmd.GET_MODEM_STATUS.AFC_FREQ_OFFSET.U8[LSB]  = radioCmd[7];
+		sendCommandAndReadResponse(buffer, 1,
+								   m_commandReply.RAW, SI446X_CMD_REPLY_COUNT_GET_MODEM_STATUS);
+		return m_commandReply.GET_MODEM_STATUS;
+	}
+	void clearModemStatus()
+	{
+		uint8_t const buffer[] = {
+			SI446X_CMD_ID_GET_MODEM_STATUS
+		};
+		sendCommand(buffer, 1);
 	}
 
 	//! Returns the interrupt status of the Chip Interrupt Group (both STATUS and PENDING).
@@ -631,26 +691,50 @@ public:
 	EZRadioReply::ChipStatus const& readChipStatus(uint8_t pendingChipIntsClearMask = 0xFF)
 	{
 		uint8_t const buffer[] = {
-			SI4455_CMD_ID_GET_CHIP_STATUS,
+			SI446X_CMD_ID_GET_CHIP_STATUS,
 			pendingChipIntsClearMask
 		};
 
-		sendCommandAndReadResponse(buffer, SI4455_CMD_ARG_COUNT_GET_CHIP_STATUS,
-								m_commandReply.RAW, SI4455_CMD_REPLY_COUNT_GET_CHIP_STATUS);
+		sendCommandAndReadResponse(buffer, SI446X_CMD_ARG_COUNT_GET_CHIP_STATUS,
+								   m_commandReply.RAW, SI446X_CMD_REPLY_COUNT_GET_CHIP_STATUS);
 		return m_commandReply.GET_CHIP_STATUS;
+	}
+	EZRadioReply::ChipStatus const& readAndClearChipStatus()
+	{
+		uint8_t const buffer[] = {
+			SI446X_CMD_ID_GET_CHIP_STATUS
+		};
 
-		// Si4455Cmd.GET_CHIP_STATUS.CHIP_PEND         = radioCmd[0];
-		// Si4455Cmd.GET_CHIP_STATUS.CHIP_STATUS       = radioCmd[1];
-		// Si4455Cmd.GET_CHIP_STATUS.CMD_ERR_STATUS    = radioCmd[2];
+		sendCommandAndReadResponse(buffer, 1,
+								   m_commandReply.RAW, SI446X_CMD_REPLY_COUNT_GET_CHIP_STATUS);
+		return m_commandReply.GET_CHIP_STATUS;
+	}
+	void clearChipStatus(uint8_t pendingChipIntsClearMask = 0xFF)
+	{
+		uint8_t const buffer[] = {
+			SI446X_CMD_ID_GET_CHIP_STATUS
+		};
+		sendCommand(buffer, SI446X_CMD_ARG_COUNT_GET_CHIP_STATUS);
 	}
 
 
-	EZRadioReply::GpioPinConfig const& configureGpioPins(uint8_t gpio0, uint8_t gpio1, uint8_t gpio2, uint8_t gpio3,
-															uint8_t nirq, uint8_t sdo,
-															uint8_t genConfig)
+	EZRadioReply::GpioPinConfig const& readGpioPinsConfiguration()
 	{
 		uint8_t const buffer[] = {
-			SI4455_CMD_ID_GPIO_PIN_CFG,
+			SI446X_CMD_ID_GPIO_PIN_CFG
+		};
+
+		sendCommandAndReadResponse(buffer, 1,
+								   m_commandReply.RAW, SI446X_CMD_REPLY_COUNT_GPIO_PIN_CFG);
+		return m_commandReply.GPIO_PIN_CFG;
+	}
+
+	EZRadioReply::GpioPinConfig const& configureGpioPins(uint8_t gpio0, uint8_t gpio1, uint8_t gpio2, uint8_t gpio3,
+														 uint8_t nirq, uint8_t sdo,
+														 uint8_t genConfig)
+	{
+		uint8_t const buffer[] = {
+			SI446X_CMD_ID_GPIO_PIN_CFG,
 			gpio0,
 			gpio1,
 			gpio2,
@@ -660,92 +744,84 @@ public:
 			genConfig
 		};
 
-		sendCommandAndReadResponse(buffer, SI4455_CMD_ARG_COUNT_GPIO_PIN_CFG,
-								m_commandReply.RAW, SI4455_CMD_REPLY_COUNT_GPIO_PIN_CFG);
+		sendCommandAndReadResponse(buffer, SI446X_CMD_ARG_COUNT_GPIO_PIN_CFG,
+								   m_commandReply.RAW, SI446X_CMD_REPLY_COUNT_GPIO_PIN_CFG);
 		return m_commandReply.GPIO_PIN_CFG;
-
-		// m_commandReply.GPIO_PIN_CFG.GPIO0        = radioCmd[0];
-		// m_commandReply.GPIO_PIN_CFG.GPIO1        = radioCmd[1];
-		// m_commandReply.GPIO_PIN_CFG.GPIO2        = radioCmd[2];
-		// m_commandReply.GPIO_PIN_CFG.GPIO3        = radioCmd[3];
-		// m_commandReply.GPIO_PIN_CFG.NIRQ         = radioCmd[4];
-		// m_commandReply.GPIO_PIN_CFG.SDO          = radioCmd[5];
-		// m_commandReply.GPIO_PIN_CFG.GEN_CONFIG   = radioCmd[6];
 	}
 
 	//! Performs conversions using the Auxiliary ADC and returns the results of those conversions.
 	EZRadioReply::AdcReadings const& readAdc(uint8_t adcEnable, uint8_t adcConfig)
 	{
 		uint8_t const buffer[] = {
-			SI4455_CMD_ID_GET_ADC_READING,
+			SI446X_CMD_ID_GET_ADC_READING,
 			adcEnable,
 			adcConfig
 		};
 
-		sendCommandAndReadResponse(buffer, SI4455_CMD_ARG_COUNT_GET_ADC_READING,
-								m_commandReply.RAW, SI4455_CMD_REPLY_COUNT_GET_ADC_READING);
+		sendCommandAndReadResponse(buffer, SI446X_CMD_ARG_COUNT_GET_ADC_READING,
+								   m_commandReply.RAW, SI446X_CMD_REPLY_COUNT_GET_ADC_READING);
 		return m_commandReply.GET_ADC_READING;
-
-		// Si4455Cmd.GET_ADC_READING.GPIO_ADC.U8[MSB]      = radioCmd[0];
-		// Si4455Cmd.GET_ADC_READING.GPIO_ADC.U8[LSB]      = radioCmd[1];
-		// Si4455Cmd.GET_ADC_READING.BATTERY_ADC.U8[MSB]   = radioCmd[2];
-		// Si4455Cmd.GET_ADC_READING.BATTERY_ADC.U8[LSB]   = radioCmd[3];
-		// Si4455Cmd.GET_ADC_READING.TEMP_ADC.U8[MSB]      = radioCmd[4];
-		// Si4455Cmd.GET_ADC_READING.TEMP_ADC.U8[LSB]      = radioCmd[5];
-		// Si4455Cmd.GET_ADC_READING.TEMP_SLOPE            = radioCmd[6];
-		// Si4455Cmd.GET_ADC_READING.TEMP_INTERCEPT        = radioCmd[7];
 	}
 
 
 	EZRadioReply::PartInfo const& readPartInformation()
 	{
 		uint8_t const buffer[] = {
-			SI4455_CMD_ID_PART_INFO
+			SI446X_CMD_ID_PART_INFO
 		};
 
-		sendCommandAndReadResponse(buffer, SI4455_CMD_ARG_COUNT_PART_INFO,
-								m_commandReply.RAW, SI4455_CMD_REPLY_COUNT_PART_INFO);
+		sendCommandAndReadResponse(buffer, SI446X_CMD_ARG_COUNT_PART_INFO,
+								   m_commandReply.RAW, SI446X_CMD_REPLY_COUNT_PART_INFO);
 		return m_commandReply.PART_INFO;
-
-		// Si4455Cmd.PART_INFO.CHIPREV         = radioCmd[0];
-		// Si4455Cmd.PART_INFO.PART.U8[MSB]    = radioCmd[1];
-		// Si4455Cmd.PART_INFO.PART.U8[LSB]    = radioCmd[2];
-		// Si4455Cmd.PART_INFO.PBUILD          = radioCmd[3];
-		// Si4455Cmd.PART_INFO.ID.U8[MSB]      = radioCmd[4];
-		// Si4455Cmd.PART_INFO.ID.U8[LSB]      = radioCmd[5];
-		// Si4455Cmd.PART_INFO.CUSTOMER        = radioCmd[6];
-		// Si4455Cmd.PART_INFO.ROMID           = radioCmd[7];
-		// Si4455Cmd.PART_INFO.BOND            = radioCmd[8];
 	}
 
 	EZRadioReply::FuncInfo const& readFunctionRevisionInformation()
 	{
 		uint8_t const buffer[] = {
-			SI4455_CMD_ID_FUNC_INFO
+			SI446X_CMD_ID_FUNC_INFO
 		};
 
-		sendCommandAndReadResponse(buffer, SI4455_CMD_ARG_COUNT_FUNC_INFO,
-								m_commandReply.RAW, SI4455_CMD_REPLY_COUNT_FUNC_INFO);
+		sendCommandAndReadResponse(buffer, SI446X_CMD_ARG_COUNT_FUNC_INFO,
+								   m_commandReply.RAW, SI446X_CMD_REPLY_COUNT_FUNC_INFO);
 		return m_commandReply.FUNC_INFO;
-
-		// Si4455Cmd.FUNC_INFO.REVEXT          = radioCmd[0];
-		// Si4455Cmd.FUNC_INFO.REVBRANCH       = radioCmd[1];
-		// Si4455Cmd.FUNC_INFO.REVINT          = radioCmd[2];
-		// Si4455Cmd.FUNC_INFO.PATCH.U8[MSB]   = radioCmd[3];
-		// Si4455Cmd.FUNC_INFO.PATCH.U8[LSB]   = radioCmd[4];
-		// Si4455Cmd.FUNC_INFO.FUNC            = radioCmd[5];
-		// Si4455Cmd.FUNC_INFO.SVNFLAGS        = radioCmd[6];
-		// Si4455Cmd.FUNC_INFO.SVNREV.U8[b3]   = radioCmd[7];
-		// Si4455Cmd.FUNC_INFO.SVNREV.U8[b2]   = radioCmd[8];
-		// Si4455Cmd.FUNC_INFO.SVNREV.U8[b1]   = radioCmd[9];
-		// Si4455Cmd.FUNC_INFO.SVNREV.U8[b0]   = radioCmd[10];
 	}
+
+
+	//! Image rejection calibration. Forces a specific value for IR calibration, and reads back calibration values from previous calibrations.
+	EZRadioReply::IRCal const& imageRejectionCalibration(uint8_t ircal_amp, uint8_t ircal_ph)
+	{
+		uint8_t const buffer[] = {
+			SI446X_CMD_ID_IRCAL_MANUAL,
+			ircal_amp,
+			ircal_ph
+		};
+
+		sendCommandAndReadResponse(buffer, SI446X_CMD_ARG_COUNT_IRCAL_MANUAL,
+								   m_commandReply.RAW, SI446X_CMD_REPLY_COUNT_IRCAL_MANUAL);
+		return m_commandReply.IRCAL_MANUAL;
+	}
+
+	//! Performs image rejection calibration. Completion can be monitored by polling CTS or waiting for CHIP_READY interrupt source.
+	void performImageRejectionCalibration(uint8_t searching_step_size, uint8_t searching_rssi_avg,
+										  uint8_t rx_chain_setting1, uint8_t rx_chain_setting2)
+	{
+		uint8_t const buffer[] = {
+			SI446X_CMD_ID_IRCAL,
+			searching_step_size,
+			searching_rssi_avg,
+			rx_chain_setting1,
+			rx_chain_setting2
+		};
+
+		sendCommand(buffer, SI446X_CMD_ARG_COUNT_IRCAL);
+	}
+
 
 
 	//! Waits for CTS to be high. Returns false if timeout occured.
 	bool waitForClearToSend(unsigned long timeout_ms = 300)
 	{
-		if (m_hal.waitForClearToSend(SI4455_CMD_ID_READ_CMD_BUFF, timeout_ms)) {
+		if (m_hal.waitForClearToSend(SI446X_CMD_ID_READ_CMD_BUFF, timeout_ms)) {
 			m_deviceBusy = false;
 			return true;
 		}
@@ -758,20 +834,29 @@ public:
 	{
 		Events it;
 
-		if (phPend & SI4455_CMD_GET_INT_STATUS_REP_PACKET_SENT_PEND_BIT)
+		if (phPend & SI446X_CMD_GET_INT_STATUS_REP_PH_PEND_PACKET_SENT_PEND_BIT)
 			it |= (Event::PacketTransmitted);
 
-		if (phPend & SI4455_CMD_GET_INT_STATUS_REP_PACKET_RX_PEND_BIT)
+		if (phPend & SI446X_CMD_GET_INT_STATUS_REP_PH_PEND_PACKET_RX_PEND_BIT)
 			it |= Event::PacketReceived;
 
-		if (phPend & SI4455_CMD_GET_INT_STATUS_REP_CRC_ERROR_PEND_BIT)
+		if (phPend & SI446X_CMD_GET_INT_STATUS_REP_PH_PEND_CRC_ERROR_PEND_BIT)
 			it |= (Event::CrcError);
 
-		if (phPend & SI4455_CMD_GET_INT_STATUS_REP_TX_FIFO_ALMOST_EMPTY_PEND_BIT)
+		if (phPend & SI446X_CMD_GET_INT_STATUS_REP_PH_PEND_ALT_CRC_ERROR_PEND_BIT)
+			it |= (Event::AlternateCrcError);
+
+		if (phPend & SI446X_CMD_GET_INT_STATUS_REP_PH_PEND_TX_FIFO_ALMOST_EMPTY_PEND_BIT)
 			it |= (Event::TxFifoAlmostEmpty);
 
-		if (phPend & SI4455_CMD_GET_INT_STATUS_REP_RX_FIFO_ALMOST_FULL_PEND_BIT)
+		if (phPend & SI446X_CMD_GET_INT_STATUS_REP_PH_PEND_RX_FIFO_ALMOST_FULL_PEND_BIT)
 			it |= (Event::RxFifoAlmostFull);
+
+		if (phPend & SI446X_CMD_GET_INT_STATUS_REP_PH_PEND_FILTER_MATCH_PEND_BIT)
+			it |= (Event::FilterMatch);
+
+		if (phPend & SI446X_CMD_GET_INT_STATUS_REP_PH_PEND_FILTER_MISS_PEND_BIT)
+			it |= (Event::FilterMiss);
 
 		return it;
 	}
@@ -780,20 +865,29 @@ public:
 	{
 		Events it;
 
-		if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_INVALID_SYNC_PEND_BIT)
+		if (modemPend & SI446X_CMD_GET_INT_STATUS_REP_MODEM_PEND_INVALID_SYNC_PEND_BIT)
 			it |= (Event::InvalidSync);
 
-		if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_INVALID_PREAMBLE_PEND_BIT)
+		if (modemPend & SI446X_CMD_GET_INT_STATUS_REP_MODEM_PEND_INVALID_PREAMBLE_PEND_BIT)
 			it |= (Event::InvalidPreamble);
 
-		if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_PREAMBLE_DETECT_PEND_BIT)
+		if (modemPend & SI446X_CMD_GET_INT_STATUS_REP_MODEM_PEND_PREAMBLE_DETECT_PEND_BIT)
 			it |= (Event::DetectedPreamble);
 
-		if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_SYNC_DETECT_PEND_BIT)
+		if (modemPend & SI446X_CMD_GET_INT_STATUS_REP_MODEM_PEND_SYNC_DETECT_PEND_BIT)
 			it |= (Event::DetectedSync);
 
-		if (modemPend & SI4455_CMD_GET_INT_STATUS_REP_RSSI_PEND_BIT)
+		if (modemPend & SI446X_CMD_GET_INT_STATUS_REP_MODEM_PEND_RSSI_LATCH_PEND_BIT)
 			it |= (Event::LatchedRssi);
+
+		if (modemPend & SI446X_CMD_GET_INT_STATUS_REP_MODEM_PEND_POSTAMBLE_DETECT_PEND_BIT)
+			it |= (Event::DetectedPostamble);
+
+		if (modemPend & SI446X_CMD_GET_INT_STATUS_REP_MODEM_PEND_RSSI_JUMP_PEND_BIT)
+			it |= (Event::RssiJump);
+
+		if (modemPend & SI446X_CMD_GET_INT_STATUS_REP_MODEM_PEND_RSSI_PEND_BIT)
+			it |= (Event::Rssi);
 
 		return it;
 	}
@@ -802,17 +896,26 @@ public:
 	{
 		Events it;
 
-		if (chipPend & SI4455_CMD_GET_INT_STATUS_REP_FIFO_UNDERFLOW_OVERFLOW_ERROR_PEND_BIT)
+		if (chipPend & SI446X_CMD_GET_INT_STATUS_REP_CHIP_PEND_FIFO_UNDERFLOW_OVERFLOW_ERROR_PEND_BIT)
 			it |= (Event::FifoUnderflowOrOverflowError);
 
-		if (chipPend & SI4455_CMD_GET_INT_STATUS_REP_CMD_ERROR_PEND_BIT)
+		if (chipPend & SI446X_CMD_GET_INT_STATUS_REP_CHIP_PEND_CMD_ERROR_PEND_BIT)
 			it |= (Event::CommandError);
 
-		if (chipPend & SI4455_CMD_GET_INT_STATUS_REP_STATE_CHANGE_PEND_BIT)
+		if (chipPend & SI446X_CMD_GET_INT_STATUS_REP_CHIP_PEND_STATE_CHANGE_PEND_BIT)
 			it |= (Event::StateChange);
 
-		if (chipPend & SI4455_CMD_GET_INT_STATUS_REP_CHIP_READY_PEND_BIT)
+		if (chipPend & SI446X_CMD_GET_INT_STATUS_REP_CHIP_PEND_CHIP_READY_PEND_BIT)
 			it |= Event::ChipReady;
+
+		if (chipPend & SI446X_CMD_GET_INT_STATUS_REP_CHIP_PEND_CAL_PEND_BIT)
+			it |= Event::Calibration;
+
+		if (chipPend & SI446X_CMD_GET_INT_STATUS_REP_CHIP_PEND_LOW_BATT_PEND_BIT)
+			it |= Event::LowBattery;
+
+		if (chipPend & SI446X_CMD_GET_INT_STATUS_REP_CHIP_PEND_WUT_PEND_BIT)
+			it |= Event::WakeUpTimerExpired;
 
 		return it;
 	}
@@ -821,6 +924,10 @@ public:
 	{
 		EZRadioReply::InterruptStatus const& is { readAndClearInterruptStatus() };
 
+		//Serial.print("> PH_PEND    "); Serial.println(is.PH_PEND);
+		//Serial.print("> MODEM_PEND "); Serial.println(is.MODEM_PEND);
+		//Serial.print("> CHIP_PEND  "); Serial.println(is.CHIP_PEND);
+
 		if (failed())
 			return Event::DeviceBusy;
 
@@ -828,24 +935,6 @@ public:
 		ev |= processPacketHandlerInterruptPending(is.PH_PEND);
 		ev |= processModemInterruptPending(is.MODEM_PEND);
 		ev |= processChipInterruptPending(is.CHIP_PEND);
-
-		/*debug("IT: ");
-		debug(" PH x");
-		debug(is.PH_PEND, HEX);
-		debug(" MODEM  x");
-		debug(is.MODEM_PEND, HEX);
-		debug(" CHIP x");
-		debug(is.CHIP_PEND, HEX);
-
-		debug(" EVs b");
-		debug(uint8_t(ev.underlying_value()>>0)&0xF, BIN);
-		debug(" ");
-		debug(uint8_t(ev.underlying_value()>>4)&0xF, BIN);
-		debug(" ");
-		debug(uint8_t(ev.underlying_value()>>8)&0xF, BIN);
-		debug(" ");
-		debug(uint8_t(ev.underlying_value()>>12)&0xF, BIN);
-		debugln();//*/
 
 		return ev;
 	}
@@ -936,4 +1025,4 @@ private:
 	bool m_deviceBusy {false};
 };
 
-} // namespace ZetaRFEZRadio
+} // namespace ZetaRFEZRadioPro
