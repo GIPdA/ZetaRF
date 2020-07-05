@@ -999,7 +999,7 @@ private:
 
 	bool readCommandWithoutClearToSend(uint8_t command, uint8_t* data, uint8_t dataByteCount)
 	{
-		m_hal.resumeOrBeginSpiTransaction();
+		m_hal.restartOrBeginSpiTransaction();
 		m_hal.spiWriteByte(command);
 		m_hal.spiReadData(data, dataByteCount);
 		m_hal.endSpiTransaction();
