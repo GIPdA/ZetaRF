@@ -15,7 +15,7 @@ START_RX command with return state on timeout to RX may leave the chip unrespond
 
 #pragma once
 
-#define ZETARF_DEBUG_ON
+//#define ZETARF_DEBUG_ON
 
 #if defined(ZETARF_DEBUG_ON)
     #define debug(...)   Serial.print(__VA_ARGS__)
@@ -41,6 +41,8 @@ START_RX command with return state on timeout to RX may leave the chip unrespond
 #include "configs/config433_variablelength_crc_preamble10_sync4_payload8.h"
 
 #include "configs/config433_4463_fixedlength_crc_preamble10_sync4_payload8.h"
+#include "configs/config868_4463_fixedlength_crc_preamble10_sync4_payload8.h"
+#include "configs/config868_4463_fixedlength_crc_preamble10_sync4_payload8_256.h"
 
 
 #include <stdint.h>
@@ -786,6 +788,14 @@ template<class ...Ts>
 using ZetaRF_DRF4463F_433 = ZetaRFConfig<ZetaRFConfigs::Config433_Si4463_FixedLength_CRC_Preamble10_Sync4_Payload8,
                                          ZetaRFEZRadioPro::EZRadioProSi446x<ZetaRFHal::ArduinoSpiHal<Ts...>> >;
 
+
+template<class ...Ts>
+using ZetaRF_DRF4463F_868 = ZetaRFConfig<ZetaRFConfigs::Config868_Si4463_FixedLength_CRC_Preamble10_Sync4_Payload8,
+                                         ZetaRFEZRadioPro::EZRadioProSi446x<ZetaRFHal::ArduinoSpiHal<Ts...>> >;
+
+template<class ...Ts>
+using ZetaRF_DRF4463F_868_256 = ZetaRFConfig<ZetaRFConfigs::Config868_Si4463_FixedLength_CRC_Preamble10_Sync4_Payload8_256,
+                                         ZetaRFEZRadioPro::EZRadioProSi446x<ZetaRFHal::ArduinoSpiHal<Ts...>> >;
 
 /*
 template<class ...Ts>
