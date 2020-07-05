@@ -35,15 +35,14 @@ void setup()
     }
 
     // Print some info about the chip
-    EZRadioReply::PartInfo const& pi = zeta.readPartInformation();
+    auto const& pi = zeta.readPartInformation();
     Serial.println("----------");
     Serial.print("Chip rev: "); Serial.println(pi.CHIPREV);
-    Serial.print("Part    : "); Serial.println(pi.PART.U16, HEX);
+    Serial.print("Part    : "); Serial.println(pi.PART, HEX);
     Serial.print("PBuild  : "); Serial.println(pi.PBUILD);
-    Serial.print("ID      : "); Serial.println(pi.ID.U16);
+    Serial.print("ID      : "); Serial.println(pi.ID);
     Serial.print("Customer: "); Serial.println(pi.CUSTOMER);
     Serial.print("Rom ID  : "); Serial.println(pi.ROMID);
-    Serial.print("Bond    : "); Serial.println(pi.BOND);
     Serial.print('\n');//*/
 
     zeta.startListeningSinglePacketOnChannel(4);
