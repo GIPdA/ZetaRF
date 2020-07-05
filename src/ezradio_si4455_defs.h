@@ -12,25 +12,6 @@
 
 #define ZETARF_PACKED __attribute__((packed))
 
-typedef union
-{
-    uint16_t U16;
-    int16_t S16;
-    uint8_t U8[2];
-    int8_t S8[2];
-} UU16;
-
-typedef union
-{
-    uint32_t U32;
-    int32_t S32;
-    UU16 uu16[2];
-    uint16_t U16[2];
-    int16_t S16[2];
-    uint8_t U8[4];
-    int8_t S8[4];
-} UU32;
-
 // This section contains command map declarations
 struct si4455_reply_GENERIC_map
 {
@@ -55,9 +36,9 @@ struct si4455_reply_GENERIC_map
 struct ZETARF_PACKED si4455_reply_PART_INFO_map
 {
     uint8_t  CHIPREV;
-    UU16 PART;
+    uint16_t PART;
     uint8_t  PBUILD;
-    UU16 ID;
+    uint16_t ID;
     uint8_t  CUSTOMER;
     uint8_t  ROMID;
     uint8_t  BOND;
@@ -88,10 +69,10 @@ struct ZETARF_PACKED si4455_reply_FUNC_INFO_map
     uint8_t  REVEXT;
     uint8_t  REVBRANCH;
     uint8_t  REVINT;
-    UU16 PATCH;
+    uint16_t PATCH;
     uint8_t  FUNC;
     uint8_t  SVNFLAGS;
-    UU32 SVNREV;
+    uint32_t SVNREV;
 };
 
 struct si4455_reply_GET_PROPERTY_map
@@ -162,7 +143,7 @@ struct ZETARF_PACKED si4455_reply_GET_MODEM_STATUS_map
     uint8_t  LATCH_RSSI;
     uint8_t  ANT1_RSSI;
     uint8_t  ANT2_RSSI;
-    UU16 AFC_FREQ_OFFSET;
+    uint16_t AFC_FREQ_OFFSET;
 };
 
 struct si4455_reply_GET_CHIP_STATUS_map
@@ -226,15 +207,15 @@ struct si4455_reply_FRR_D_READ_map {
 };
 
 struct ZETARF_PACKED si4455_reply_GET_ADC_READING_map {
-    UU16 GPIO_ADC;
-    UU16 BATTERY_ADC;
-    UU16 TEMP_ADC;
+    uint16_t GPIO_ADC;
+    uint16_t BATTERY_ADC;
+    uint16_t TEMP_ADC;
     uint8_t  TEMP_SLOPE;
     uint8_t  TEMP_INTERCEPT;
 };
 
 struct ZETARF_PACKED si4455_reply_PACKET_INFO_map {
-    UU16 LENGTH;
+    uint16_t LENGTH;
 };
 
 #undef ZETARF_PACKED
