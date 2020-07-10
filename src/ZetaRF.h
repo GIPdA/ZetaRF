@@ -18,12 +18,12 @@ START_RX command with return state on timeout to RX may leave the chip unrespond
 //#define ZETARF_DEBUG_ON
 
 #if defined(ZETARF_DEBUG_ON)
-    #if defined(__AVR__)
-        #define debug(...)   Serial.print(__VA_ARGS__)
-        #define debugln(...) Serial.println(__VA_ARGS__)
-    #else
+    #if defined(WIRINGPI)
         #define debug(...)   std::cout << __VA_ARGS__
         #define debugln(...) std::cout << __VA_ARGS__ << std::endl
+    #else
+        #define debug(...)   Serial.print(__VA_ARGS__)
+        #define debugln(...) Serial.println(__VA_ARGS__)
     #endif
 #else
     #define debug(...)
