@@ -33,10 +33,10 @@ START_RX command with return state on timeout to RX may leave the chip unrespond
 
 #include "zetarf_hal.hpp"
 
-#if defined(__AVR__)
-    #include "zetarf_arduino_spi_hal.h"
-#elif defined(__arm__)
+#if defined(WIRINGPI)
     #include "zetarf_rpi_spi_hal.h"
+#else
+    #include "zetarf_arduino_spi_hal.h"
 #endif
 
 #include "zetarf_radio.hpp"
@@ -784,14 +784,12 @@ public:
 #undef debugln
 
 
-#if defined(__AVR__)
-    template<class ...Ts>
-    using SpiHal = ZetaRFHal::ArduinoSpiHal<Ts...>;
-#elif defined(__arm__)
+#if defined(WIRINGPI)
     template<class ...Ts>
     using SpiHal = ZetaRFHal::RPiSpiHal<Ts...>;
 #else
-    #error "No compatible HAL was found"
+    template<class ...Ts>
+    using SpiHal = ZetaRFHal::ArduinoSpiHal<Ts...>;
 #endif
 
 // Default configs
