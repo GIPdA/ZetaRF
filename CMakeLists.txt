@@ -12,3 +12,4 @@ endif()
 
 add_subdirectory(src)
 add_subdirectory(examples/rpi/SimpleRx)
+add_subdirectory(examples/rpi/SimpleRxVariableLength)
