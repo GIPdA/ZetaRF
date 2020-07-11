@@ -8,12 +8,11 @@
 #include <iostream>
 #include <iomanip>
 
-#define ZETARF_DEBUG_ON
 #include <ZetaRF.h>
 
 constexpr size_t MaxPacketLength {32};
 
-ZetaRF433<ZetaRF::nSEL<6>, ZetaRF::SDN<9>, ZetaRF::nIRQ<8>> zeta;
+ZetaRF868_VL<ZetaRF::nSEL<6>, ZetaRF::SDN<9>, ZetaRF::nIRQ<8>> zeta; // Wasn't using VL?! Check this
 
 char data[MaxPacketLength] = "Hello World!";
 
@@ -122,7 +121,7 @@ void loop()
       for (uint8_t i = 0; i < zeta.packetLength(); i++) {
         std::cout << std::setfill('0') << std::setw(2) << (int) data[i];
       }
-      */std::cout << std::dec << "<" << std::endl;
+      std::cout << std::dec << "<" << std::endl; //*/
     }
   }
 

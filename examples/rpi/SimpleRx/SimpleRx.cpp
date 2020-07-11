@@ -14,7 +14,7 @@
 // Radio configurations also sets a default packet size, usually 8, that you can get using zeta.defaultPacketLength().
 constexpr size_t ZetaRFPacketLength {8};
 
-ZetaRF433<ZetaRF::nSEL<6>, ZetaRF::SDN<9>, ZetaRF::nIRQ<8>> zeta;
+ZetaRF868<ZetaRF::nSEL<6>, ZetaRF::SDN<9>, ZetaRF::nIRQ<8>> zeta;
 
 char data[ZetaRFPacketLength] = "Hello ";
 
