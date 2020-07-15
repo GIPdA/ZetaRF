@@ -21,7 +21,7 @@ char data[ZetaRFPacketLength] = "Hello ";
 
 bool setup()
 {
-  std::cout << "Starting Zeta TxRx..." << std::endl;
+  std::cout << "Starting Zeta Rx..." << std::endl;
 
   // Initialize Zeta module with a specific packet size
   if (!zeta.beginWithPacketLengthOf(ZetaRFPacketLength)) {

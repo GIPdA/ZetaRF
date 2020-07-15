@@ -19,7 +19,7 @@ char data[MaxPacketLength] = "Hello World!";
 
 bool setup()
 {
-  std::cout << "Starting Zeta TxRx VL..." << std::endl;
+  std::cout << "Starting Zeta Rx VL..." << std::endl;
 
   // Initialize Zeta module with a specific packet size
   if (!zeta.beginWithPacketLengthOf(MaxPacketLength)) {
