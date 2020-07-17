@@ -23,4 +23,4 @@ target_link_libraries(${PROJECT_NAME} wiringPi)
 
 # Build Raspberry Pi examples
 
-add_subdirectory(examples/rpi)
+add_subdirectory(examples_raspberrypi)
