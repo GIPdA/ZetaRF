@@ -28,7 +28,7 @@ enum class Event : uint32_t
     LatchedRssi                     = uint32_t(1UL << 13),
     DetectedPostamble               = uint32_t(1UL << 14), // EZRadioPro
     RssiJump                        = uint32_t(1UL << 15), // EZRadioPro
-    Rssi                            = uint32_t(1UL << 16), // EZRadioPro
+    RssiThreshold                   = uint32_t(1UL << 16), // EZRadioPro
 
     // Chip Interrupt
     FifoUnderflowOrOverflowError    = uint32_t(1UL << 17),

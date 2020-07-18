@@ -1072,7 +1072,7 @@ public:
             it |= (Event::RssiJump);
 
         if (modemPend & SI446X_CMD_GET_INT_STATUS_REP_MODEM_PEND_RSSI_PEND_BIT)
-            it |= (Event::Rssi);
+            it |= (Event::RssiThreshold);
 
         return it;
     }
