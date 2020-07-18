@@ -84,9 +84,16 @@ public:
     operator bool() const noexcept {
         return m_value == Result::Success;
     }
+    operator Result() const noexcept {
+        return m_value;
+    }
 
     uint8_t receivedPacketSize() const noexcept {
         return m_packetSize;
+    }
+
+    Result value() const noexcept {
+        return m_value;
     }
 
 private:
