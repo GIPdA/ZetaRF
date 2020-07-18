@@ -88,8 +88,7 @@ void loop()
     /*if (ev & ZetaRF::Event::LatchedRssi) {
       // Latched RSSI is cleared when restarting RX
       uint8_t rssi = zeta.latchedRssiValue();
-      Serial.print(F("RSSI: "));
-      Serial.println(rssi);
+      std::cout << "RSSI: " << (int)rssi << std::endl;
     }//*/
     if (ev & ZetaRF::Event::PacketReceived) {
       // We'll read data later
@@ -108,7 +107,7 @@ void loop()
       std::cout << "Packet transmitted" << std::endl;
     }
     /*if (ev & ZetaRF::Event::TxFifoAlmostEmpty) {
-      Serial.println("TX Fifo almost empty");
+      std::cout << "TX Fifo almost empty" << std::endl;
     }//*/
   }
 
