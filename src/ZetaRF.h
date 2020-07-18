@@ -18,8 +18,13 @@ START_RX command with return state on timeout to RX may leave the chip unrespond
 //#define ZETARF_DEBUG_ON
 
 #if defined(ZETARF_DEBUG_ON)
-    #define debug(...)   Serial.print(__VA_ARGS__)
-    #define debugln(...) Serial.println(__VA_ARGS__)
+    #if defined(WIRINGPI)
+        #define debug(...)   std::cout << __VA_ARGS__
+        #define debugln(...) std::cout << __VA_ARGS__ << std::endl
+    #else
+        #define debug(...)   Serial.print(__VA_ARGS__)
+        #define debugln(...) Serial.println(__VA_ARGS__)
+    #endif
 #else
     #define debug(...)
     #define debugln(...)
@@ -27,7 +32,12 @@ START_RX command with return state on timeout to RX may leave the chip unrespond
 
 
 #include "zetarf_hal.hpp"
-#include "zetarf_arduino_spi_hal.h"
+
+#if defined(WIRINGPI)
+    #include "zetarf_rpi_spi_hal.h"
+#else
+    #include "zetarf_arduino_spi_hal.h"
+#endif
 
 #include "zetarf_radio.hpp"
 #include "ezradio_si4455.h"
@@ -774,37 +784,38 @@ public:
 #undef debugln
 
 
+#if defined(WIRINGPI)
+    template<class ...Ts>
+    using SpiHal = ZetaRFHal::RPiSpiHal<Ts...>;
+#else
+    template<class ...Ts>
+    using SpiHal = ZetaRFHal::ArduinoSpiHal<Ts...>;
+#endif
 
-// Default Arduino configs
+// Default configs
 template<class ...Ts>
-using ZetaRF868 = ZetaRFConfig<ZetaRFConfigs::Config868_FixedLength_CRC_Preamble10_Sync4_Payload8, ZetaRFEZRadio::EZRadioSi4455<ZetaRFHal::ArduinoSpiHal<Ts...>> >;
+using ZetaRF868 = ZetaRFConfig<ZetaRFConfigs::Config868_FixedLength_CRC_Preamble10_Sync4_Payload8, ZetaRFEZRadio::EZRadioSi4455<SpiHal<Ts...>> >;
+
+template<class ...Ts>
+using ZetaRF433 = ZetaRFConfig<ZetaRFConfigs::Config433_FixedLength_CRC_Preamble10_Sync4_Payload8, ZetaRFEZRadio::EZRadioSi4455<SpiHal<Ts...>> >;
 
 // Variable Length
 template<class ...Ts>
-using ZetaRF868_VL = ZetaRFConfig<ZetaRFConfigs::Config868_VariableLength_CRC_Preamble10_Sync4_Payload8, ZetaRFEZRadio::EZRadioSi4455<ZetaRFHal::ArduinoSpiHal<Ts...>> >;
+using ZetaRF868_VL = ZetaRFConfig<ZetaRFConfigs::Config868_VariableLength_CRC_Preamble10_Sync4_Payload8, ZetaRFEZRadio::EZRadioSi4455<SpiHal<Ts...>> >;
+
+template<class ...Ts>
+using ZetaRF433_VL = ZetaRFConfig<ZetaRFConfigs::Config433_VariableLength_CRC_Preamble10_Sync4_Payload8, ZetaRFEZRadio::EZRadioSi4455<SpiHal<Ts...>> >;
 
 
 template<class ...Ts>
 using ZetaRF_DRF4463F_433 = ZetaRFConfig<ZetaRFConfigs::Config433_Si4463_FixedLength_CRC_Preamble10_Sync4_Payload8,
-                                         ZetaRFEZRadioPro::EZRadioProSi446x<ZetaRFHal::ArduinoSpiHal<Ts...>> >;
+                                         ZetaRFEZRadioPro::EZRadioProSi446x<SpiHal<Ts...>> >;
 
 
 template<class ...Ts>
 using ZetaRF_DRF4463F_868 = ZetaRFConfig<ZetaRFConfigs::Config868_Si4463_FixedLength_CRC_Preamble10_Sync4_Payload8,
-                                         ZetaRFEZRadioPro::EZRadioProSi446x<ZetaRFHal::ArduinoSpiHal<Ts...>> >;
+                                         ZetaRFEZRadioPro::EZRadioProSi446x<SpiHal<Ts...>> >;
 
 template<class ...Ts>
 using ZetaRF_DRF4463F_868_256 = ZetaRFConfig<ZetaRFConfigs::Config868_Si4463_FixedLength_CRC_Preamble10_Sync4_Payload8_256,
-                                         ZetaRFEZRadioPro::EZRadioProSi446x<ZetaRFHal::ArduinoSpiHal<Ts...>> >;
-
-/*
-template<class ...Ts>
-using ZetaRF433 = ZetaRFImpl<ZetaRFConfigs::Config433_FixedLength_CRC_Preamble10_Sync4_Payload8, Ts...>;
-
-// Configs using variable length packets
-template<class ...Ts>
-using ZetaRF868_VL = ZetaRFImpl<ZetaRFConfigs::Config868_VariableLength_CRC_Preamble10_Sync4_Payload8, Ts...>;
-
-template<class ...Ts>
-using ZetaRF433_VL = ZetaRFImpl<ZetaRFConfigs::Config433_VariableLength_CRC_Preamble10_Sync4_Payload8, Ts...>;
-//*/
+                                         ZetaRFEZRadioPro::EZRadioProSi446x<SpiHal<Ts...>> >;

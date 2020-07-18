@@ -8,6 +8,7 @@ ZetaRF ![Version 1.1.11](https://img.shields.io/badge/Version-1.1.11-blue.svg)
 ![Arduino Zero](https://img.shields.io/badge/Arduino_Zero-SAMD-yellowgreen.svg)
 ![Arduino Due](https://img.shields.io/badge/Arduino_Due-SAM-orange.svg)
 ![Teensy 2 upto 3.5 including LC](https://img.shields.io/badge/Teensy-2_to_3.5,_LC-brown.svg)
+![Raspberry Pi](https://img.shields.io/badge/Raspberry_Pi-ARM-black.svg)
 
 
 ## About
@@ -142,26 +143,45 @@ Returns true if a system error occured (auto clears). System error happens when 
 See code examples for more details.
 (TODO: add more examples)
 
+To build the Raspberry Pi examples, run `cmake .` followed by `make` from the root directory. The binaries will be located in the new `build` folder.
+
 
 ## Installation
+
+### Arduino
+
 Copy the library folder to your Arduino library folder.
 
-## Pin connexions
+### Raspberry Pi
 
-ZETA Pin #|ZETA Module|Arduino|Description
-----------|-----------|-------|-----------
-1         |ANT        |-      |Antenna (small wire for tests works great (86mm long for 868MHz))
-2         |GND        |GND    |Power Ground
-3         |SDN        |GPIO   |Shutdown (active high)
-4         |VDD        |VDD    |Power (1.8V to 3.6V)
-5         |nIRQ       |GPIO   |IRQ (active low)
-6         |NC         |-      |Not Connected
-7         |GPIO1      |-      |Not Used
-8         |GPIO2      |-      |Not Used
-9         |SCLK       |SCLK   |SPI Clock
-10        |SDI        |MOSI   |Zeta SPI In to Arduino SPI Out
-11        |SDO        |MISO   |Zeta SPI Out to Arduino SPI In
-12        |nSEL       |CS     |Chip Select (active low)
+Copy the library folder to your project folder. Add ZetaRF to your `CMakeLists.txt` file with
+
+```cmake
+add_subdirectory(ZetaRF)
+
+add_compile_definitions(WIRINGPI)
+include_directories(ZetaRF/src)
+
+add_executable(MyProject ${SOURCES})
+target_link_libraries(MyProject zetarf)
+```
+
+## Pin connections
+
+ZETA Pin #|ZETA Module|Arduino|Pi  |Description
+----------|-----------|-------|----|-----------
+1         |ANT        |-      |-   |Antenna (small wire for tests works great (86mm long for 868MHz))
+2         |GND        |GND    |GND |Power Ground
+3         |SDN        |GPIO   |GPIO|Shutdown (active high)
+4         |VDD        |VDD    |3v3 |Power (1.8V to 3.6V)
+5         |nIRQ       |GPIO   |GPIO|IRQ (active low)
+6         |NC         |-      |-   |Not Connected
+7         |GPIO1      |-      |-   |Not Used
+8         |GPIO2      |-      |-   |Not Used
+9         |SCLK       |SCLK   |SCLK|SPI Clock
+10        |SDI        |MOSI   |MOSI|Zeta SPI In to Arduino SPI Out
+11        |SDO        |MISO   |MISO|Zeta SPI Out to Arduino SPI In
+12        |nSEL       |CS     |GPIO|Chip Select (active low)
 
 (**Note** - Possible improvement: a GPIO could be used for CTS instead of polling a register)
 
