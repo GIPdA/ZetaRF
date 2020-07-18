@@ -358,7 +358,7 @@ public:
         //debug("Read VL Packet of size: ");
         //debugln(packetDataLength);
 
-        if (length <= 1) {
+        if (length <= 1 || length > 63) {
             m_radio.resetRxFifo(); // MAYBE: do if RX auto-recovery option active
             if (m_radio.succeeded())
                 m_dataAvailable = false;
