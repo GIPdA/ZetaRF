@@ -4,26 +4,75 @@
 
 ZetaRf	KEYWORD1
 DeviceState	KEYWORD1
+Events
 
 #######################################
 # Methods and Functions (KEYWORD2)
 #######################################
 
 begin	KEYWORD2
-setChannel	KEYWORD2
-currentChannel	KEYWORD2
-deviceState	KEYWORD2
-sendPacket	KEYWORD2
-startListening	KEYWORD2
-checkTransmitted	KEYWORD2
-checkReceived	KEYWORD2
-readPacket	KEYWORD2
-isTxFifoAlmostEmpty	KEYWORD2
-isRxFifoAlmostFull	KEYWORD2
-readPartInfo	KEYWORD2
-readFuncInfo	KEYWORD2
-readCurrentRSSI	KEYWORD2
-resetRxFifo	KEYWORD2
+beginWithPacketLengthOf	KEYWORD2
+sendPacketOnChannel	KEYWORD2
+sendFixedLengthPacketOnChannel	KEYWORD2
+sendVariableLengthPacketOnChannel	KEYWORD2
+
+readPacketTo	KEYWORD2
+readFixedLengthPacketTo	KEYWORD2
+readVariableLengthPacketTo	KEYWORD2
+
+defaultPacketLength	KEYWORD2
+
+hasDataAvailable	KEYWORD2
+available	KEYWORD2
+
+checkForEvent	KEYWORD2
+checkForAnyEventOf	KEYWORD2
+checkForAllEventsOf	KEYWORD2
+events	KEYWORD2
+clearEvents	KEYWORD2
+
+
+beginWithConfigurationDataArray	KEYWORD2
+hardwareReset	KEYWORD2
+end	KEYWORD2
+
+requestNop	KEYWORD2
+
+sendFixedLengthPacketOnChannel	KEYWORD2
+sendVariableLengthPacketOnChannel	KEYWORD2
+
+readFixedLengthPacketTo	KEYWORD2
+readVariableLengthPacketTo	KEYWORD2
+
+latchedRssiValue	KEYWORD2
+
+packetLength	KEYWORD2
+setPacketLength	KEYWORD2
+
+maxRxPacketLength	KEYWORD2
+setMaxRxPacketLength	KEYWORD2
+
+listeningChannel	KEYWORD2
+requestCurrentChannel	KEYWORD2
+
+startListeningOnChannel	KEYWORD2
+startListeningSinglePacketOnChannel	KEYWORD2
+startListeningSinglePacket	KEYWORD2
+
+requestBytesAvailableInTxFifo	KEYWORD2
+requestBytesAvailableInRxFifo	KEYWORD2
+requestResetRxFifo	KEYWORD2
+requestResetTxFifo	KEYWORD2
+requestResetRxAndTxFifo	KEYWORD2
+
+isAlive	KEYWORD2
+requestCurrentRssi	KEYWORD2
+radioState	KEYWORD2
+requestDeviceState	KEYWORD2
+
+readPartInformation	KEYWORD2
+readFunctionRevisionInformation	KEYWORD2
+
 
 #######################################
 # Instances (KEYWORD2)
@@ -34,3 +83,36 @@ resetRxFifo	KEYWORD2
 # Constants (LITERAL1)
 #######################################
 
+# Events #
+AllEvents                    LITERAL1
+None                         LITERAL1
+# Packet Handler
+PacketTransmitted            LITERAL1
+PacketReceived               LITERAL1
+CrcError                     LITERAL1
+TxFifoAlmostEmpty            LITERAL1
+RxFifoAlmostFull             LITERAL1
+FilterMatch                  LITERAL1
+FilterMiss                   LITERAL1
+AlternateCrcError            LITERAL1
+
+# Modem Interrupt
+InvalidSync                  LITERAL1
+InvalidPreamble              LITERAL1
+DetectedPreamble             LITERAL1
+DetectedSync                 LITERAL1
+LatchedRssi                  LITERAL1
+DetectedPostamble            LITERAL1
+RssiJump                     LITERAL1
+Rssi                         LITERAL1
+
+# Chip Interrupt
+FifoUnderflowOrOverflowError LITERAL1
+CommandError                 LITERAL1
+StateChange                  LITERAL1
+ChipReady                    LITERAL1
+Calibration                  LITERAL1
+LowBattery                   LITERAL1
+WakeUpTimerExpired           LITERAL1
+
+DeviceBusy                   LITERAL1
