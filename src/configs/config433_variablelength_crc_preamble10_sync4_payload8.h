@@ -19,7 +19,7 @@
 // Modulation index: 1
 */
 
-namespace ZetaRFConfigs {
+namespace ZetaRfConfigs {
 
 struct Config433_VariableLength_CRC_Preamble10_Sync4_Payload8
 {
@@ -30,4 +30,4 @@ struct Config433_VariableLength_CRC_Preamble10_Sync4_Payload8
     constexpr static bool VariableLengthPacketConfiguration = true;
 };
 
-} // namespace ZetaRFConfigs
+} // namespace ZetaRfConfigs

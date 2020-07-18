@@ -20,7 +20,7 @@
 // Modulation index: 0,313
 */
 
-namespace ZetaRFConfigs {
+namespace ZetaRfConfigs {
 
 struct Config868_Si4463_FixedLength_CRC_Preamble10_Sync4_Payload8
 {
@@ -31,4 +31,4 @@ struct Config868_Si4463_FixedLength_CRC_Preamble10_Sync4_Payload8
     constexpr static bool VariableLengthPacketConfiguration = false;
 };
 
-} // namespace ZetaRFConfigs
+} // namespace ZetaRfConfigs

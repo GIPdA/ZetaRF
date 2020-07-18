@@ -1,10 +1,10 @@
-/*! @file ZetaRF.cpp
+/*! @file ZetaRf.cpp
  *
  * http://www.silabs.com/products/wireless/EZRadio/Pages/Si4455.aspx
  *
  * License: see LICENSE file
  */
 
-#include "ZetaRF.h"
+#include "ZetaRf.hpp"
 
-// Nothing to see here!
+// Just for Arduino to register that's the main class

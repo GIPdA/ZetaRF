@@ -2,10 +2,8 @@
 # Datatypes (KEYWORD1)
 #######################################
 
-ZetaRF	KEYWORD1
+ZetaRf	KEYWORD1
 DeviceState	KEYWORD1
-Si4455_PartInfo	KEYWORD1
-Si4455_FuncInfo	KEYWORD1
 
 #######################################
 # Methods and Functions (KEYWORD2)

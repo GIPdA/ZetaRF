@@ -1,6 +1,10 @@
 .DS_Store
 
-# Output directory
+# VSCode
+.vscode
+examples/build
+
+# Output directory (cmake)
 build
 
 # Created by https://www.gitignore.io/api/cmake

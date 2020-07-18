@@ -1,24 +1,24 @@
 /*
- * SPI HAL for RaspberryPi
+ * SPI HAL for Arduino boards
  */
 
 #pragma once
-
-#include <algorithm>
-#include <cstring>
-#include <type_traits>
-
-#include <wiringPi.h>
-#include <wiringPiSPI.h>
+#include <Arduino.h>
+#include <SPI.h>
 
 #include "zetarf_hal.hpp"
 
-#define ZETARF_SPI_SETTINGS_CHANNEL 0
-#define ZETARF_SPI_SETTINGS_FREQ 1000000UL
+#ifdef __AVR__
+#include "avr_helpers/type_traits.hpp"
+#endif
+
+#define ZETARF_SPI_SETTINGS_DEFAULT SPISettings(1000000UL, MSBFIRST, SPI_MODE0)
+#define ZETARF_SPI_SETTINGS         ZETARF_SPI_SETTINGS_DEFAULT
+
 
 namespace ZetaRfHal {
 
-namespace rpi {
+namespace arduino {
 
 //!! Timeout utility class
 struct Timeout
@@ -43,11 +43,11 @@ struct Timeout
     }
 };
 
-} // namespace rpi
+} // namespace arduino
 
 
 template <class TChipSelectPin, class TShutdownPin, class TIrqPin>
-class RPiSpiHal
+class ArduinoSpiHal
 {
     static_assert(std::is_base_of<ChipSelectPinSelector, TChipSelectPin>::value, "First parameter of ZetaRF must be the Chip Select pin. Use ChipSelectPin<10> to use pin 10.");
     static_assert(std::is_base_of<ShutdownPinSelector, TShutdownPin>::value, "Second parameter of ZetaRF must be the Shutdown pin. Use ShutdownPin<9> to use pin 9.");
@@ -61,19 +61,17 @@ protected:
     bool m_inSpiTransaction {false};
 
 public:
-    using Timeout = rpi::Timeout;
+    using Timeout = arduino::Timeout;
 
     bool initialize()
     {
-        wiringPiSetup();
-        wiringPiSPISetup(ZETARF_SPI_SETTINGS_CHANNEL, ZETARF_SPI_SETTINGS_FREQ);
-
         pinMode(ChipSelect_pin, OUTPUT);
-        pinMode(IrqPin, INPUT);
-        pullUpDnControl(IrqPin, PUD_UP);
+        pinMode(IrqPin, INPUT_PULLUP);
         pinMode(ShutdownPin, OUTPUT);
 
         digitalWrite(ChipSelect_pin, HIGH);
+
+        SPI.begin();
         //putInShutdown();
         return true;
     }
@@ -82,7 +80,9 @@ public:
         pinMode(ChipSelect_pin, INPUT);
         pinMode(IrqPin, INPUT);
         pinMode(ShutdownPin, INPUT);
+        SPI.end();
     }
+
 
     bool isIrqAsserted() const {
         return (digitalRead(IrqPin) == LOW);
@@ -120,6 +120,8 @@ public:
     {
         m_inSpiTransaction = true;
         digitalWrite(ChipSelect_pin, LOW);
+        //delayMicroseconds(1);
+        SPI.beginTransaction(ZETARF_SPI_SETTINGS);
     }
     void resumeOrBeginSpiTransaction(uint8_t readCommandId)
     {
@@ -138,14 +140,14 @@ public:
     }
     void endSpiTransaction()
     {
+        SPI.endTransaction();
         delayMicroseconds(1);
         digitalWrite(ChipSelect_pin, HIGH);
         m_inSpiTransaction = false;
     }
 
     uint8_t spiReadWriteByte(uint8_t value) {
-        wiringPiSPIDataRW(ZETARF_SPI_SETTINGS_CHANNEL, &value, 1);
-        return value;
+        return SPI.transfer(value);
     }
 
     void spiWriteByte(uint8_t value) {
@@ -156,17 +158,15 @@ public:
     }
 
     void spiReadWriteData(uint8_t* data, uint8_t count) {
-        wiringPiSPIDataRW(ZETARF_SPI_SETTINGS_CHANNEL, data, count);
+        SPI.transfer(data, count);
     }
     void spiWriteData(uint8_t const* data, uint8_t count) {
-        // Make copy of data as wiringPi will overwrite
-        uint8_t dataCopy[count];
-        memcpy(dataCopy, data, sizeof(dataCopy));
-        wiringPiSPIDataRW(ZETARF_SPI_SETTINGS_CHANNEL, dataCopy, count);
+        while (count--)
+            SPI.transfer(*data++);
     }
     void spiReadData(uint8_t* data, uint8_t count) {
-        std::fill_n(data, count, 0xFF);
-        wiringPiSPIDataRW(ZETARF_SPI_SETTINGS_CHANNEL, data, count);
+        while (count--)
+            *data++ = SPI.transfer(0xFF);
     }
 };
 
@@ -174,31 +174,31 @@ public:
 // HAL with GPIO 1 as CTS output (inverted, low when CTS)
 // WARNING: the radio config needs to support it!
 template <class TChipSelectPin, class TShutdownPin, class TIrqPin, class TClearToSendPin>
-class RPiSpiHal_Gpio1AsClearToSend : RPiSpiHal<TChipSelectPin, TShutdownPin, TIrqPin>
+class ArduinoSpiHal_Gpio1AsClearToSend : ArduinoSpiHal<TChipSelectPin, TShutdownPin, TIrqPin>
 {
-    using Base = RPiSpiHal<TChipSelectPin, TShutdownPin, TIrqPin>;
+    using Base = ArduinoSpiHal<TChipSelectPin, TShutdownPin, TIrqPin>;
 
     static_assert(std::is_base_of<ClearToSendPinSelector, TClearToSendPin>::value, "Fourth parameter of ZetaRF must be the Clear To Send pin. Use ClearToSendPin<11> to use pin 11.");
 
     static constexpr int ClearToSend_pin = TClearToSendPin::pin;
 
 public:
-    using Timeout = rpi::Timeout;
+    using Timeout = arduino::Timeout;
 
     bool initialize() {
-        pinMode(ClearToSend_pin, INPUT);
-        pullUpDnControl(ClearToSend_pin, PUD_UP);
+        pinMode(ClearToSend_pin, INPUT_PULLUP);
         // TODO: add GPIO config?
-        return Base::initialize();;
+        return Base::initialize();
     }
     bool deinitialize() {
         pinMode(ClearToSend_pin, INPUT);
-        return Base::deinitialize();;
+        return Base::deinitialize();
     }
 
     bool waitForClearToSend(uint8_t readCommandId, uint16_t timeout_ms)
     {
-        (void)readCommandId;
+        // CTS line goes low when clear to send.
+        (void)readCommandId; // Not needed when using CTS on GPIO
 
         if (digitalRead(ClearToSend_pin) == LOW) // Fast check to avoid timeout
             return true;
@@ -213,6 +213,19 @@ public:
             delayMicroseconds(100);
         }
         return true;
+    }
+
+    void resumeOrBeginSpiTransaction(uint8_t readCommandId)
+    {
+        if (this->m_inSpiTransaction)
+            return;
+        this->beginSpiTransaction();
+
+        // Only when using hardware CTS, we need to send the "read command buffer" command
+        // and clear the first byte (the CTS value). When polling the CTS via SPI,
+        // this is done in waitForClearToSend(...).
+        this->spiWriteByte(readCommandId);
+        this->spiReadByte();
     }
 };
 

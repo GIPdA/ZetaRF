@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="Windows-1252"?>
-<RCA_ProjectData ProjectName="Bidirectional packet" ChipType="Si4463" ChipRevision="B1" Version="3.2.11.0">
+<RCA_ProjectData ProjectName="Empty framework" ChipType="Si4463" ChipRevision="B1" Version="3.2.11.0">
   <DataItems>
     <tbpFrequencyAndPower Type="System.Windows.Forms.TabPage">
       <grbFequencyControl Type="System.Windows.Forms.GroupBox">
@@ -59,10 +59,10 @@
           <SelectedIndex>2</SelectedIndex>
         </DataItem>
         <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudDataRate">
-          <Value>256.000</Value>
+          <Value>50.000</Value>
         </DataItem>
         <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudDeviation">
-          <Value>20</Value>
+          <Value>20.000</Value>
         </DataItem>
         <DataItem Type="System.Windows.Forms.CheckBox" Name="chbManualRxBandwidth">
           <Checked>False</Checked>
@@ -108,14 +108,17 @@
           <Checked>False</Checked>
         </DataItem>
         <DataItem Type="System.Windows.Forms.CheckBox" Name="chbEnablePllAFC">
-          <Checked>False</Checked>
+          <Checked>True</Checked>
+        </DataItem>
+        <DataItem Type="System.Windows.Forms.CheckBox" Name="chbEnableAdaptiveChannelFilterBandwidth">
+          <Checked>True</Checked>
         </DataItem>
       </grbRfParameters>
     </tbpRfParameters>
     <tbpPacketHandler Type="System.Windows.Forms.TabPage">
       <pccPacketHandlerConfigurator Type="NewWDS.PacketConfigControl">
         <DataItem Type="System.Windows.Forms.ComboBox" Name="cbbPacketStructure">
-          <SelectedIndex>2</SelectedIndex>
+          <SelectedIndex>0</SelectedIndex>
         </DataItem>
         <tabGeneralConfig Type="System.Windows.Forms.TabControl">
           <tbpGeneralPacketConfig Type="System.Windows.Forms.TabPage">
@@ -126,7 +129,7 @@
               <Value>48</Value>
             </DataItem>
             <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudNumOfFields">
-              <Value>1</Value>
+              <Value>2</Value>
             </DataItem>
             <DataItem Type="System.Windows.Forms.CheckBox" Name="chbResetDataWhiteningAtBeginingOfThePackets">
               <Checked>True</Checked>
@@ -138,6 +141,28 @@
               <Checked>True</Checked>
             </DataItem>
           </tbpGeneralPacketConfig>
+          <tbpVariableLengthConfig Type="System.Windows.Forms.TabPage">
+            <DataItem Type="System.Windows.Forms.CheckBox" Name="chbEnableVariablePacketLength">
+              <Checked>True</Checked>
+            </DataItem>
+            <grbVariablePacketLen Type="System.Windows.Forms.GroupBox">
+              <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudPacketLengthAdjust">
+                <Value>0</Value>
+              </DataItem>
+              <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudVariableFieldNum">
+                <Value>2</Value>
+              </DataItem>
+              <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudLengthInField">
+                <Value>1</Value>
+              </DataItem>
+              <DataItem Type="System.Windows.Forms.CheckBox" Name="chbPacketLengthInMsb">
+                <Checked>False</Checked>
+              </DataItem>
+              <DataItem Type="System.Windows.Forms.CheckBox" Name="chbAddLengthToFifo">
+                <Checked>True</Checked>
+              </DataItem>
+            </grbVariablePacketLen>
+          </tbpVariableLengthConfig>
           <tbpGeneralCrcConfig Type="System.Windows.Forms.TabPage">
             <DataItem Type="System.Windows.Forms.CheckBox" Name="chbResetCRCAtBeginingOfThePacket">
               <Checked>True</Checked>
@@ -158,7 +183,7 @@
           </tbpGeneralCrcConfig>
           <tbpGeneralDataWhiteningConfiguration Type="System.Windows.Forms.TabPage">
             <DataItem Type="System.Windows.Forms.ComboBox" Name="cbbDataWhiteningPolynomial">
-              <SelectedIndex>1</SelectedIndex>
+              <SelectedIndex>0</SelectedIndex>
             </DataItem>
             <DataItem Type="System.Windows.Forms.MaskedTextBox" Name="mtbDataWhiteningSeed">
               <Text>FF FF</Text>
@@ -207,7 +232,7 @@
                 </DataItem>
               </grbPreambleType>
               <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudPreambleTxLength">
-                <Value>8</Value>
+                <Value>48</Value>
               </DataItem>
               <DataItem Type="System.Windows.Forms.CheckBox" Name="chbPreambleManchester1111">
                 <Checked>True</Checked>
@@ -219,7 +244,7 @@
                 <Checked>True</Checked>
               </DataItem>
               <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudPreambleRXThreshold">
-                <Value>20</Value>
+                <Value>16</Value>
               </DataItem>
             </grbPreamble>
           </tbpPreamble>
@@ -244,12 +269,12 @@
               </DataItem>
             </grbSyncWord>
           </tbpSyncWord>
-          <tbpField5 Type="System.Windows.Forms.TabPage">
-            <grbField5 Type="System.Windows.Forms.GroupBox">
-              <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudField5Length">
-                <Value>7</Value>
+          <tbpField2 Type="System.Windows.Forms.TabPage">
+            <grbField2 Type="System.Windows.Forms.GroupBox">
+              <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudField2Length">
+                <Value>32</Value>
               </DataItem>
-              <haiField5Content Type="NewWDS.Applications.App_Common.PacketConfigControl.HexAsciiInputControl">
+              <haiField2Content Type="NewWDS.Applications.App_Common.PacketConfigControl.HexAsciiInputControl">
                 <DataItem Type="System.Windows.Forms.RadioButton" Name="rdbASCII">
                   <Checked>False</Checked>
                 </DataItem>
@@ -258,10 +283,32 @@
                 </DataItem>
                 <pnlInput Type="System.Windows.Forms.Panel">
                   <DataItem Type="System.Windows.Forms.MaskedTextBox" Name="mtbInput">
-                    <Text>C5 C5 C5 C5 C5 C5 C5</Text>
+                    <Text>C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5 C5</Text>
                   </DataItem>
                 </pnlInput>
-              </haiField5Content>
+              </haiField2Content>
+              <DataItem Type="System.Windows.Forms.CheckBox" Name="chbField2EnableCRC">
+                <Checked>True</Checked>
+              </DataItem>
+              <DataItem Type="System.Windows.Forms.CheckBox" Name="chbField2CheckCRC">
+                <Checked>True</Checked>
+              </DataItem>
+              <DataItem Type="System.Windows.Forms.CheckBox" Name="chbField2TransmitCRC">
+                <Checked>True</Checked>
+              </DataItem>
+              <DataItem Type="System.Windows.Forms.CheckBox" Name="chbField2DataWhitening">
+                <Checked>True</Checked>
+              </DataItem>
+              <DataItem Type="System.Windows.Forms.CheckBox" Name="chbField2ManchesterEncoding">
+                <Checked>True</Checked>
+              </DataItem>
+            </grbField2>
+          </tbpField2>
+          <tbpField5 Type="System.Windows.Forms.TabPage">
+            <grbField5 Type="System.Windows.Forms.GroupBox">
+              <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudField5Length">
+                <Value>7</Value>
+              </DataItem>
               <DataItem Type="System.Windows.Forms.CheckBox" Name="chbField5EnableCRC">
                 <Checked>False</Checked>
               </DataItem>
@@ -284,19 +331,6 @@
               <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudField4Length">
                 <Value>7</Value>
               </DataItem>
-              <haiField4Content Type="NewWDS.Applications.App_Common.PacketConfigControl.HexAsciiInputControl">
-                <DataItem Type="System.Windows.Forms.RadioButton" Name="rdbASCII">
-                  <Checked>False</Checked>
-                </DataItem>
-                <DataItem Type="System.Windows.Forms.RadioButton" Name="rdbHEX">
-                  <Checked>True</Checked>
-                </DataItem>
-                <pnlInput Type="System.Windows.Forms.Panel">
-                  <DataItem Type="System.Windows.Forms.MaskedTextBox" Name="mtbInput">
-                    <Text>C5 C5 C5 C5 C5 C5 C5</Text>
-                  </DataItem>
-                </pnlInput>
-              </haiField4Content>
               <DataItem Type="System.Windows.Forms.CheckBox" Name="chbField4EnableCRC">
                 <Checked>False</Checked>
               </DataItem>
@@ -319,19 +353,6 @@
               <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudField3Length">
                 <Value>7</Value>
               </DataItem>
-              <haiField3Content Type="NewWDS.Applications.App_Common.PacketConfigControl.HexAsciiInputControl">
-                <DataItem Type="System.Windows.Forms.RadioButton" Name="rdbASCII">
-                  <Checked>False</Checked>
-                </DataItem>
-                <DataItem Type="System.Windows.Forms.RadioButton" Name="rdbHEX">
-                  <Checked>True</Checked>
-                </DataItem>
-                <pnlInput Type="System.Windows.Forms.Panel">
-                  <DataItem Type="System.Windows.Forms.MaskedTextBox" Name="mtbInput">
-                    <Text>C5 C5 C5 C5 C5 C5 C5</Text>
-                  </DataItem>
-                </pnlInput>
-              </haiField3Content>
               <DataItem Type="System.Windows.Forms.CheckBox" Name="chbField3EnableCRC">
                 <Checked>False</Checked>
               </DataItem>
@@ -349,70 +370,22 @@
               </DataItem>
             </grbField3>
           </tbpField3>
-          <tbpField2 Type="System.Windows.Forms.TabPage">
-            <grbField2 Type="System.Windows.Forms.GroupBox">
-              <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudField2Length">
-                <Value>7</Value>
-              </DataItem>
-              <haiField2Content Type="NewWDS.Applications.App_Common.PacketConfigControl.HexAsciiInputControl">
-                <DataItem Type="System.Windows.Forms.RadioButton" Name="rdbASCII">
-                  <Checked>False</Checked>
-                </DataItem>
-                <DataItem Type="System.Windows.Forms.RadioButton" Name="rdbHEX">
-                  <Checked>True</Checked>
-                </DataItem>
-                <pnlInput Type="System.Windows.Forms.Panel">
-                  <DataItem Type="System.Windows.Forms.MaskedTextBox" Name="mtbInput">
-                    <Text>C5 C5 C5 C5 C5 C5 C5</Text>
-                  </DataItem>
-                </pnlInput>
-              </haiField2Content>
-              <DataItem Type="System.Windows.Forms.CheckBox" Name="chbField2EnableCRC">
-                <Checked>False</Checked>
-              </DataItem>
-              <DataItem Type="System.Windows.Forms.CheckBox" Name="chbField2CheckCRC">
-                <Checked>False</Checked>
-              </DataItem>
-              <DataItem Type="System.Windows.Forms.CheckBox" Name="chbField2TransmitCRC">
-                <Checked>False</Checked>
-              </DataItem>
-              <DataItem Type="System.Windows.Forms.CheckBox" Name="chbField2DataWhitening">
-                <Checked>False</Checked>
-              </DataItem>
-              <DataItem Type="System.Windows.Forms.CheckBox" Name="chbField2ManchesterEncoding">
-                <Checked>False</Checked>
-              </DataItem>
-            </grbField2>
-          </tbpField2>
           <tbpField1 Type="System.Windows.Forms.TabPage">
             <grbField1 Type="System.Windows.Forms.GroupBox">
               <DataItem Type="System.Windows.Forms.NumericUpDown" Name="nudField1Length">
-                <Value>8</Value>
+                <Value>1</Value>
               </DataItem>
-              <haiField1Content Type="NewWDS.Applications.App_Common.PacketConfigControl.HexAsciiInputControl">
-                <DataItem Type="System.Windows.Forms.RadioButton" Name="rdbASCII">
-                  <Checked>False</Checked>
-                </DataItem>
-                <DataItem Type="System.Windows.Forms.RadioButton" Name="rdbHEX">
-                  <Checked>True</Checked>
-                </DataItem>
-                <pnlInput Type="System.Windows.Forms.Panel">
-                  <DataItem Type="System.Windows.Forms.MaskedTextBox" Name="mtbInput">
-                    <Text>C5 C5 C5 C5 C5 C5 C5 C5</Text>
-                  </DataItem>
-                </pnlInput>
-              </haiField1Content>
               <DataItem Type="System.Windows.Forms.CheckBox" Name="chbField1EnableCRC">
                 <Checked>True</Checked>
               </DataItem>
               <DataItem Type="System.Windows.Forms.CheckBox" Name="chbField1CheckCRC">
-                <Checked>True</Checked>
+                <Checked>False</Checked>
               </DataItem>
               <DataItem Type="System.Windows.Forms.CheckBox" Name="chbField1TransmitCRC">
-                <Checked>True</Checked>
+                <Checked>False</Checked>
               </DataItem>
               <DataItem Type="System.Windows.Forms.CheckBox" Name="chbField1DataWhitening">
-                <Checked>False</Checked>
+                <Checked>True</Checked>
               </DataItem>
               <DataItem Type="System.Windows.Forms.CheckBox" Name="chbField1ManchesterEncoding">
                 <Checked>True</Checked>
@@ -447,7 +420,7 @@
         </DataItem>
         <DataItem Type="NewWDS.Applications.App_Common.ByteStatusControl.ByteStatus" Name="bstPacketHandlerInterruptStatus">
           <Enabled>True</Enabled>
-          <Value>60</Value>
+          <Value>48</Value>
         </DataItem>
       </grbPacketHandlerInterrupt>
       <grbColorDescrition Type="System.Windows.Forms.GroupBox" />
@@ -458,13 +431,13 @@
           <SelectedIndex>9</SelectedIndex>
         </DataItem>
         <DataItem Type="System.Windows.Forms.ComboBox" Name="cbbFrrC">
-          <SelectedIndex>6</SelectedIndex>
+          <SelectedIndex>4</SelectedIndex>
         </DataItem>
         <DataItem Type="System.Windows.Forms.ComboBox" Name="cbbFrrD">
-          <SelectedIndex>10</SelectedIndex>
+          <SelectedIndex>8</SelectedIndex>
         </DataItem>
         <DataItem Type="System.Windows.Forms.ComboBox" Name="cbbFrrB">
-          <SelectedIndex>4</SelectedIndex>
+          <SelectedIndex>10</SelectedIndex>
         </DataItem>
       </grbFastResponseRegisters>
       <grbGPIO Type="System.Windows.Forms.GroupBox">
@@ -472,7 +445,7 @@
           <Checked>False</Checked>
         </DataItem>
         <DataItem Type="System.Windows.Forms.ComboBox" Name="cbbGpio0">
-          <SelectedIndex>CTS</SelectedIndex>
+          <SelectedIndex>INV_CTS</SelectedIndex>
         </DataItem>
         <DataItem Type="System.Windows.Forms.CheckBox" Name="chbGpio1Pullup">
           <Checked>False</Checked>

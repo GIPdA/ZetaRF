@@ -4,7 +4,7 @@
 
 #include <stdint.h>
 
-namespace ZetaRF {
+namespace ZetaRf {
 
 enum class Event : uint32_t
 {
@@ -43,11 +43,11 @@ enum class Event : uint32_t
 };
 using Events = flags::flags<Event>;
 
-} // namespace ZetaRF
+} // namespace ZetaRf
 
-ALLOW_FLAGS_FOR_ENUM(ZetaRF::Event)
+ALLOW_FLAGS_FOR_ENUM(ZetaRf::Event)
 
-namespace ZetaRF {
+namespace ZetaRf {
 
 constexpr Events const AllEvents {
               Event::PacketTransmitted | Event::PacketReceived
@@ -61,4 +61,4 @@ constexpr Events const AllEvents {
             | Event::DeviceBusy
             };
 
-} // namespace ZetaRF
+} // namespace ZetaRf
