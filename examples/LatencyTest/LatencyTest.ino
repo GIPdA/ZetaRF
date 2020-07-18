@@ -10,13 +10,13 @@
  *  Approx delay: 3.297ms + 0.142916667ms/byte
  */
 
-#include <ZetaRF.h>
+#include <ZetaRf.hpp>
 
-constexpr size_t ZetaRFPacketLength {32};
+constexpr size_t ZetaRfPacketLength {32};
 
-ZetaRF868<ZetaRF::nSEL<10>, ZetaRF::SDN<9>, ZetaRF::nIRQ<8>> zeta;
+ZetaRf868<ZetaRf::nSEL<10>, ZetaRf::SDN<9>, ZetaRf::nIRQ<8>> zeta;
 
-char data[ZetaRFPacketLength] = "Hello ";
+char data[ZetaRfPacketLength] = "Hello ";
 
 bool runTest = false; // send 'r' over serial to start, 's' to stop
 unsigned long txTime = 0;
@@ -27,10 +27,10 @@ void setup()
     Serial.begin(115200);
     while (!Serial); // Might wait for actual serial terminal to connect over USB
 
-    Serial.println("Starting ZetaRF Latency Test...");
+    Serial.println("Starting ZetaRf Latency Test...");
 
-    if (!zeta.beginWithPacketLengthOf(ZetaRFPacketLength)) {
-        Serial.println(F("ZetaRF begin failed. Check wiring?"));
+    if (!zeta.beginWithPacketLengthOf(ZetaRfPacketLength)) {
+        Serial.println(F("ZetaRf begin failed. Check wiring?"));
         while (true);
     }
 
@@ -55,8 +55,8 @@ void setup()
 
 void loop()
 {
-    if (ZetaRF::Events const ev = zeta.checkForEvent()) {
-        if (ev & ZetaRF::Event::PacketReceived) {
+    if (ZetaRf::Events const ev = zeta.checkForEvent()) {
+        if (ev & ZetaRf::Event::PacketReceived) {
             // Back to RX after TX, don't spend time here for that
 
             //Serial.print("Device state: ");
@@ -101,12 +101,12 @@ void loop()
             }
         }
 
-        if (ev & ZetaRF::Event::PacketTransmitted) {
+        if (ev & ZetaRf::Event::PacketTransmitted) {
             zeta.restartListeningSinglePacket();
             Serial.println("Msg transmitted");
         }
 
-        /*if (ev & ZetaRF::Event::LatchedRssi) {
+        /*if (ev & ZetaRf::Event::LatchedRssi) {
             uint8_t rssi = zeta.latchedRssiValue();
             Serial.print("RSSI: ");
             Serial.println(int(rssi));
@@ -150,8 +150,8 @@ void loop()
 
             // Wait and clear RX or they will rebel and speak forever.
             delay(100);
-            if (ZetaRF::Events const ev = zeta.checkForEvent()) {
-                if (ev & ZetaRF::Event::PacketTransmitted) {
+            if (ZetaRf::Events const ev = zeta.checkForEvent()) {
+                if (ev & ZetaRf::Event::PacketTransmitted) {
                     zeta.restartListeningSinglePacket();
                 }
             }
@@ -173,7 +173,7 @@ void loop()
                 Serial.println(" failed");
         }
         if (c == 'x') { // Hard reset the radio
-            if (!zeta.beginWithPacketLengthOf(ZetaRFPacketLength)) {
+            if (!zeta.beginWithPacketLengthOf(ZetaRfPacketLength)) {
                 Serial.println(F("Zeta begin failed"));
             }
         }

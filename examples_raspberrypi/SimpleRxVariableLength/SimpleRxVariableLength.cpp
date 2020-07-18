@@ -8,11 +8,11 @@
 #include <iostream>
 #include <iomanip>
 
-#include <ZetaRF.h>
+#include <ZetaRf.hpp>
 
 constexpr size_t MaxPacketLength {32};
 
-ZetaRF868_VL<ZetaRF::nSEL<6>, ZetaRF::SDN<9>, ZetaRF::nIRQ<8>> zeta; // Wasn't using VL?! Check this
+ZetaRf868_VL<ZetaRf::nSEL<6>, ZetaRf::SDN<9>, ZetaRf::nIRQ<8>> zeta; // Wasn't using VL?! Check this
 
 char data[MaxPacketLength] = "Hello World!";
 
@@ -23,7 +23,7 @@ bool setup()
 
   // Initialize Zeta module with a specific packet size
   if (!zeta.beginWithPacketLengthOf(MaxPacketLength)) {
-    std::cout << "ZetaRF begin failed. Check wiring?" << std::endl;
+    std::cout << "ZetaRf begin failed. Check wiring?" << std::endl;
     return false;
   }
 
@@ -69,23 +69,23 @@ void loop()
   // checkForEvent() returns any event of: Event::CrcError | Event::PacketTransmitted | Event::PacketReceived | Event::LatchedRssi
   //                                     | Event::TxFifoAlmostEmpty | Event::RxFifoAlmostFull | Event::FifoUnderflowOrOverflowError
   // checkForAnyEventOf(filter) enables you to filter events.
-  // checkForAllEventsOf(filter) will return ZetaRF::Event::None unless all events in filter are present.
+  // checkForAllEventsOf(filter) will return ZetaRf::Event::None unless all events in filter are present.
   //
   // Unfiltered events are accessible via zeta.events(). Use zeta.clearEvents([event]) to clear all or specified events.
 
-  if (ZetaRF::Events const ev = zeta.checkForEvent()) {
-    if (ev & ZetaRF::Event::DeviceBusy) {
+  if (ZetaRf::Events const ev = zeta.checkForEvent()) {
+    if (ev & ZetaRf::Event::DeviceBusy) {
       // DeviceBusy error usually means the radio module is unresponding and need a reset.
       std::cout << "Error: Device Busy! Restarting..." << std::endl;
 
       if (!zeta.beginWithPacketLengthOf(MaxPacketLength)) {
-        std::cout << "ZetaRF begin failed after comm error." << std::endl;
+        std::cout << "ZetaRf begin failed after comm error." << std::endl;
         while (true);
       }
       zeta.restartListeningSinglePacket();
     }
 
-    if (ev & ZetaRF::Event::PacketReceived) {
+    if (ev & ZetaRf::Event::PacketReceived) {
       // We'll read data later
       // Get RSSI (only valid in single packet RX, before going back to RX)
       uint8_t const rssi = zeta.latchedRssiValue();
@@ -96,7 +96,7 @@ void loop()
       std::cout << "Packet received with RSSI: " << (int) rssi << std::endl;
     }
 
-    if (ev & ZetaRF::Event::PacketTransmitted) {
+    if (ev & ZetaRf::Event::PacketTransmitted) {
       // Back to RX afer TX
       zeta.restartListeningSinglePacket();
 

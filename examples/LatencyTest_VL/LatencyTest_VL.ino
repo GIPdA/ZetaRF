@@ -10,14 +10,14 @@
  *  Approx delay: 3.457ms + 0.142916667ms/byte
  */
 
-#include <ZetaRF.h>
+#include <ZetaRf.hpp>
 
-constexpr size_t ZetaRFPacketLength {32};
-constexpr size_t ZetaRFPacketMinLength {8};
+constexpr size_t ZetaRfPacketLength {32};
+constexpr size_t ZetaRfPacketMinLength {8};
 
-ZetaRF868_VL<ZetaRF::nSEL<10>, ZetaRF::SDN<9>, ZetaRF::nIRQ<8>> zeta;
+ZetaRf868_VL<ZetaRf::nSEL<10>, ZetaRf::SDN<9>, ZetaRf::nIRQ<8>> zeta;
 
-char data[ZetaRFPacketLength] = "Hello ";
+char data[ZetaRfPacketLength] = "Hello ";
 
 bool runTest = false; // send 'r' over serial to start, 's' to stop
 unsigned long txTime = 0;
@@ -31,20 +31,20 @@ void setup()
     Serial.begin(115200);
     while (!Serial); // Might wait for actual serial terminal to connect over USB
 
-    Serial.println("Starting ZetaRF Variable Length Latency Test...");
+    Serial.println("Starting ZetaRf Variable Length Latency Test...");
 
     if (!zeta.begin()) {
-        Serial.println(F("ZetaRF begin failed. Check wiring?"));
+        Serial.println(F("ZetaRf begin failed. Check wiring?"));
         while (true);
     }
 
     // Print some info about the chip
-    EZRadioReply::PartInfo const& pi = zeta.readPartInformation();
+    auto const& pi = zeta.readPartInformation();
     Serial.println("----------");
     Serial.print("Chip rev: "); Serial.println(pi.CHIPREV);
-    Serial.print("Part    : "); Serial.println(pi.PART.U16, HEX);
+    Serial.print("Part    : "); Serial.println(pi.PART, HEX);
     Serial.print("PBuild  : "); Serial.println(pi.PBUILD);
-    Serial.print("ID      : "); Serial.println(pi.ID.U16);
+    Serial.print("ID      : "); Serial.println(pi.ID);
     Serial.print("Customer: "); Serial.println(pi.CUSTOMER);
     Serial.print("Rom ID  : "); Serial.println(pi.ROMID);
     Serial.print("Bond    : "); Serial.println(pi.BOND);
@@ -60,8 +60,8 @@ void setup()
 
 void loop()
 {
-    if (ZetaRF::Events const ev = zeta.checkForEvent()) {
-        if (ev & ZetaRF::Event::PacketReceived) {
+    if (ZetaRf::Events const ev = zeta.checkForEvent()) {
+        if (ev & ZetaRf::Event::PacketReceived) {
             // Back to RX after TX, don't spend time here for that
 
             //Serial.print("Device state: ");
@@ -70,7 +70,7 @@ void loop()
             if (!runTest) {
                 // Send packet back ASAP
                 uint8_t readSize {0};
-                if (zeta.readVariableLengthPacketTo((uint8_t*)data, ZetaRFPacketLength, readSize)) {
+                if (zeta.readVariableLengthPacketTo((uint8_t*)data, ZetaRfPacketLength, readSize)) {
                     zeta.sendVariableLengthPacketOnChannel(4, (const uint8_t*)data, readSize);
                 }
                 uint8_t rssi = zeta.latchedRssiValue();
@@ -87,7 +87,7 @@ void loop()
             } else {
                 // Print trip time
                 uint8_t readSize {0};
-                if (zeta.readVariableLengthPacketTo((uint8_t*)data, ZetaRFPacketLength, readSize)) {
+                if (zeta.readVariableLengthPacketTo((uint8_t*)data, ZetaRfPacketLength, readSize)) {
                     unsigned long const rxTime = micros();
                     float const latency = (rxTime-txTime)/2;
 
@@ -115,12 +115,12 @@ void loop()
             }
         }
 
-        if (ev & ZetaRF::Event::PacketTransmitted) {
+        if (ev & ZetaRf::Event::PacketTransmitted) {
             zeta.restartListeningSinglePacket();
             Serial.println("Msg transmitted");
         }
 
-        /*if (ev & ZetaRF::Event::LatchedRssi) {
+        /*if (ev & ZetaRf::Event::LatchedRssi) {
             uint8_t rssi = zeta.latchedRssiValue();
             Serial.print("RSSI: ");
             Serial.println(int(rssi));
@@ -133,9 +133,9 @@ void loop()
 
             //Serial.print("\nDevice state: ");
             //Serial.println(static_cast<int>(zeta.radioState()));
-            static int sendSize = ZetaRFPacketMinLength-1;
-            if (++sendSize > ZetaRFPacketLength) {
-                sendSize = ZetaRFPacketMinLength;
+            static int sendSize = ZetaRfPacketMinLength-1;
+            if (++sendSize > ZetaRfPacketLength) {
+                sendSize = ZetaRfPacketMinLength;
             }
             
             txTime = micros();
@@ -175,8 +175,8 @@ void loop()
 
             // Wait and clear RX or they will rebel and speak forever.
             delay(100);
-            if (ZetaRF::Events const ev = zeta.checkForEvent()) {
-                if (ev & ZetaRF::Event::PacketTransmitted) {
+            if (ZetaRf::Events const ev = zeta.checkForEvent()) {
+                if (ev & ZetaRf::Event::PacketTransmitted) {
                     zeta.restartListeningSinglePacket();
                 }
             }
