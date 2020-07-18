@@ -1,5 +1,5 @@
 
-#include "config433_4463_fixedlength_crc_preamble10_sync4_payload8.h"
+#include "config433_4463_fixedlength_crc_preamble10_sync4_payload8.hpp"
 
 // WDS GUI Version: 3.2.11.0
 // Device: Si4463 Rev.: B1

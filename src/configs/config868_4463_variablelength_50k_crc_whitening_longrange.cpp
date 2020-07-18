@@ -1,5 +1,5 @@
 
-#include "config868_4463_variablelength_50k_crc_whitening_longrange.h"
+#include "config868_4463_variablelength_50k_crc_whitening_longrange.hpp"
 
 // WDS GUI Version: 3.2.11.0
 // Device: Si4463 Rev.: B1

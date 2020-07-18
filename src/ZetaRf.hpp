@@ -44,16 +44,16 @@ START_RX command with return state on timeout to RX may leave the chip unrespond
 #include "ezradiopro_si446x.hpp"
 
 // Include other configs here
-#include "configs/config868_fixedlength_crc_preamble10_sync4_payload8.h"
-#include "configs/config433_fixedlength_crc_preamble10_sync4_payload8.h"
+#include "configs/config868_fixedlength_crc_preamble10_sync4_payload8.hpp"
+#include "configs/config433_fixedlength_crc_preamble10_sync4_payload8.hpp"
 
-#include "configs/config868_variablelength_crc_preamble10_sync4_payload8.h"
-#include "configs/config433_variablelength_crc_preamble10_sync4_payload8.h"
+#include "configs/config868_variablelength_crc_preamble10_sync4_payload8.hpp"
+#include "configs/config433_variablelength_crc_preamble10_sync4_payload8.hpp"
 
-#include "configs/config433_4463_fixedlength_crc_preamble10_sync4_payload8.h"
-#include "configs/config868_4463_fixedlength_crc_preamble10_sync4_payload8.h"
-//#include "configs/config868_4463_variablelength_crc_preamble10_sync4_payload8.h"
-#include "configs/config868_4463_variablelength_50k_crc_whitening_longrange.h"
+#include "configs/config433_4463_fixedlength_crc_preamble10_sync4_payload8.hpp"
+#include "configs/config868_4463_fixedlength_crc_preamble10_sync4_payload8.hpp"
+//#include "configs/config868_4463_variablelength_crc_preamble10_sync4_payload8.hpp"
+#include "configs/config868_4463_variablelength_50k_crc_whitening_longrange.hpp"
 
 
 #include <stdint.h>

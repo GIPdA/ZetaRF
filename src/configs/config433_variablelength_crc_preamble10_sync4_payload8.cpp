@@ -1,5 +1,5 @@
 
-#include "config433_variablelength_crc_preamble10_sync4_payload8.h"
+#include "config433_variablelength_crc_preamble10_sync4_payload8.hpp"
 
 // INPUT DATA
 /*
