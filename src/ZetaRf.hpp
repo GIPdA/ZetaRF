@@ -1,6 +1,6 @@
-/*! @file ZetaRF.h
+/*! @file ZetaRf.h
  *
- * @brief ZetaRF library main file
+ * @brief ZetaRf library main file
  * @version 2.0
  *
  * License: see LICENSE file
@@ -21,17 +21,17 @@ START_RX command with return state on timeout to RX may leave the chip unrespond
     #define debug(...)   Serial.print(__VA_ARGS__)
     #define debugln(...) Serial.println(__VA_ARGS__)
 #else
-    #define debug(...)
-    #define debugln(...)
+    #define debug(...) {}
+    #define debugln(...) {}
 #endif
 
 
 #include "zetarf_hal.hpp"
-#include "zetarf_arduino_spi_hal.h"
+#include "zetarf_arduino_spi_hal.hpp"
 
 #include "zetarf_radio.hpp"
-#include "ezradio_si4455.h"
-#include "ezradiopro_si446x.h"
+#include "ezradio_si4455.hpp"
+#include "ezradiopro_si446x.hpp"
 
 // Include other configs here
 #include "configs/config868_fixedlength_crc_preamble10_sync4_payload8.h"
@@ -42,7 +42,8 @@ START_RX command with return state on timeout to RX may leave the chip unrespond
 
 #include "configs/config433_4463_fixedlength_crc_preamble10_sync4_payload8.h"
 #include "configs/config868_4463_fixedlength_crc_preamble10_sync4_payload8.h"
-#include "configs/config868_4463_fixedlength_crc_preamble10_sync4_payload8_256.h"
+//#include "configs/config868_4463_variablelength_crc_preamble10_sync4_payload8.h"
+#include "configs/config868_4463_variablelength_50k_crc_whitening_longrange.h"
 
 
 #include <stdint.h>
@@ -53,7 +54,27 @@ START_RX command with return state on timeout to RX may leave the chip unrespond
 #define CONSTEXPR constexpr
 #endif
 
-namespace ZetaRF {
+namespace ZetaRf {
+
+
+template <typename Kernel>
+struct BasicKernel
+{
+    //static_assert (Kernel::PacketSize, "PacketSize not defined");
+    // using RadioConfig = T;
+    static constexpr uint8_t PacketSize {0};
+    // max packet size
+};
+
+template <typename Config>
+struct ConfigKernel : public BasicKernel<ConfigKernel<Config>>
+{
+    using RadioConfig = Config;
+    static constexpr uint8_t PacketSize { Config::VariableLengthPacketConfiguration ? 0 : Config::PacketLength };
+    static constexpr uint8_t MaxPacketSize { Config::PacketLength };
+    static constexpr uint8_t DefaultChannel { Config::DefaultChannel };
+    static constexpr uint8_t ConfigDataArray[] { Config::RadioConfigurationDataArray };
+};
 
 class ReadPacketResult {
 public:
@@ -68,11 +89,16 @@ public:
         Success
     };
 
-    /* implicit */ ReadPacketResult(Result value) : m_value(value) {}
+    /* implicit */ ReadPacketResult(Result value, uint8_t packetSize = 0) noexcept : m_value(value), m_packetSize(packetSize) {}
 
-    operator bool() const {
+    operator bool() const noexcept {
         return m_value == Result::Success;
     }
+
+    uint8_t receivedPacketSize() const noexcept {
+        return m_packetSize;
+    }
+
 private:
     friend inline bool operator==(ReadPacketResult a, ReadPacketResult b) {
         return a.m_value == b.m_value;
@@ -87,20 +113,21 @@ private:
         return !(a == b);
     }
 
-    Result m_value;
+    Result const m_value;
+    uint8_t const m_packetSize;
 };
 
-} // namespace ZetaRF
+} // namespace ZetaRf
 
 
 template <typename EZRadio>
-class ZetaRFBase
+class ZetaRfBase
 {
 public:
     using RadioState = typename EZRadio::RadioState;
-    using Event = ZetaRF::Event;
-    using Events = ZetaRF::Events;
-	using EZRadioReply = typename EZRadio::EZRadioReply;
+    using Event = ZetaRf::Event;
+    using Events = ZetaRf::Events;
+    using EZRadioReply = typename EZRadio::EZRadioReply;
 
     using PartInfo = typename EZRadioReply::PartInfo;
     using FuncInfo = typename EZRadioReply::FuncInfo;
@@ -182,7 +209,7 @@ public:
         //delay(100);
 
         int retryCount = 2;
-        // Load radio configuration
+        // Load radio configuration and set FRRs
         while (!m_radio.loadConfigurationArray(configArray) && (retryCount--)) {
             // Reset and retry
             hardwareReset();
@@ -195,16 +222,8 @@ public:
             return false;
         }
 
+        m_maxRxPacketLength = m_radio.readMaxRxPacketLength()&0xFF;
         m_radio.clearAllPendingInterrupts();
-
-        // Configure FRR
-        // ! DO NOT CHANGE ! FRRs are used by the library.
-        m_radio.setProperties(0x02, // Group ID
-                              0x00, // Start at index 0 (FRR A)
-                              SI4455_PROP_FRR_CTL_A_MODE_FRR_A_MODE_ENUM_CURRENT_STATE,
-                              SI4455_PROP_FRR_CTL_B_MODE_FRR_B_MODE_ENUM_LATCHED_RSSI,
-                              SI4455_PROP_FRR_CTL_C_MODE_FRR_C_MODE_ENUM_INT_PH_PEND,
-                              SI4455_PROP_FRR_CTL_D_MODE_FRR_D_MODE_ENUM_INT_CHIP_PEND);
 
         _clearEvents();
         return m_radio.succeeded();
@@ -219,6 +238,7 @@ public:
         m_radio.noOperation();
         return m_radio.succeeded();
     }
+
 
     /*!
      * Send data to @a channel. Returns to previous radio state after TX complete.
@@ -255,8 +275,8 @@ public:
 
         // Start sending packet on channel, return to current state after transmit
         m_radio.startTx(channel,
-                        static_cast<uint8_t>(txCompleteState),
-                        m_packetLength);
+                        m_packetLength,
+                        txCompleteState);
 
         return m_radio.succeeded();
     }
@@ -287,10 +307,9 @@ public:
         m_radio.writeTxFifo(data, dataByteCount);
 
         // Start sending packet on channel, return to current state after transmit
-        m_radio.startTx(channel,
-                        static_cast<uint8_t>(txCompleteState),
-                        false, // retransmit
-                        dataByteCount+1);
+        m_radio.startVariableLengthTx(channel,
+                                      dataByteCount,//+1,
+                                      txCompleteState);
 
         return m_radio.succeeded();
     }
@@ -301,53 +320,58 @@ public:
     }//*/
 
     //! Read packet from Rx FIFO, if any.
-    ZetaRF::ReadPacketResult readFixedLengthPacketTo(uint8_t* data, uint8_t dataByteCount)
+    ZetaRf::ReadPacketResult readFixedLengthPacketTo(uint8_t* data, uint8_t dataByteCount)
     {
         if (!data)
-            return ZetaRF::ReadPacketResult::InvalidArgument;
+            return ZetaRf::ReadPacketResult::InvalidArgument;
 
         // Read FIFO info to known how many bytes are pending
         auto const& fi = m_radio.readFifoInfo();
         if (m_radio.failed())
-            return ZetaRF::ReadPacketResult::RequestFailed;
+            return ZetaRf::ReadPacketResult::RequestFailed;
 
         return readPacket(fi, data, dataByteCount);
     }
 
     //! Read variable length packet from Rx FIFO, if any.
-    ZetaRF::ReadPacketResult readVariableLengthPacketTo(uint8_t* data, uint8_t maxByteCount, uint8_t& packetDataLength)
+    //! packetDataLength is set to the received packet length, even in case of packet size error.
+    ZetaRf::ReadPacketResult readVariableLengthPacketTo(uint8_t* data, uint8_t maxByteCount, uint8_t* packetDataLength)
     {
         if (!data)
-            return ZetaRF::ReadPacketResult::InvalidArgument;
+            return ZetaRf::ReadPacketResult::InvalidArgument;
 
         // Read FIFO info to known how many bytes are pending
         auto fi = m_radio.readFifoInfo(); // Make a copy
         if (m_radio.failed())
-            return ZetaRF::ReadPacketResult::RequestFailed;
+            return ZetaRf::ReadPacketResult::RequestFailed;
 
         if (fi.RX_FIFO_COUNT < 1) {
             debugln("Read VL Packet: Not Enough Data In Fifo");
-            return ZetaRF::ReadPacketResult::NotEnoughDataInFifo;
+            return ZetaRf::ReadPacketResult::NotEnoughDataInFifo;
         }
 
         // Read size
         fi.RX_FIFO_COUNT--; // Remove variable length field
-        m_radio.readRxFifo(&packetDataLength, 1);
+        uint8_t length {0};
+        m_radio.readRxFifo(&length, 1);
+
+        if (packetDataLength)
+            *packetDataLength = length;
 
         //debug("Read VL Packet of size: ");
         //debugln(packetDataLength);
 
-        if (packetDataLength <= 1) {
+        if (length <= 1) {
             m_radio.resetRxFifo(); // MAYBE: do if RX auto-recovery option active
             if (m_radio.succeeded())
                 m_dataAvailable = false;
-            return ZetaRF::ReadPacketResult::InvalidPacketSize;
+            return {ZetaRf::ReadPacketResult::InvalidPacketSize, length};
         }
 
-        if (packetDataLength > maxByteCount)
-            return ZetaRF::ReadPacketResult::PacketSizeLargerThanBuffer;
+        if (length > maxByteCount)
+            return {ZetaRf::ReadPacketResult::PacketSizeLargerThanBuffer, length};
 
-        return readPacket(fi, data, packetDataLength);
+        return readPacket(fi, data, length);
     }
 
 
@@ -357,6 +381,7 @@ public:
         return m_radio.readFrrB().FRR_B_VALUE;
     }
 
+    //! Packet size in fixed length mode, must be zero in variable length mode
     uint8_t packetLength() const
     {
         return m_packetLength;
@@ -364,6 +389,17 @@ public:
     void setPacketLength(uint8_t newLength)
     {
         m_packetLength = newLength;
+    }
+
+    //! Max packet length accepted by the RX modem. Not used for Si4455 (Zeta modules).
+    uint8_t maxRxPacketLength() const
+    {
+        return m_maxRxPacketLength;
+    }
+    void setMaxRxPacketLength(uint8_t newLength)
+    {
+        m_radio.setMaxRxPacketLength(newLength);
+        m_maxRxPacketLength = newLength;
     }
 
     uint8_t listeningChannel() const
@@ -409,6 +445,7 @@ public:
 
         return startListeningSinglePacket(m_listeningChannel, m_packetLength);
     }
+
 
     // Space left in TX FIFO
     uint8_t requestBytesAvailableInTxFifo()
@@ -468,7 +505,7 @@ public:
         auto const& ds {m_radio.readDeviceState()};
         return m_radio.succeeded() ? ds.CURR_STATE : 0;
     }
-    
+
     /*static CONSTEXPR const char* radioStateText(RadioState state) {
         switch (state) {
             case RadioState::Sleep: return "Sleep";
@@ -489,7 +526,8 @@ public:
     {
         // Put radio in shutdown, wait then release
         m_radio.holdInReset();
-        delayMicroseconds(20);
+        //delayMicroseconds(20);
+        delay(1);
         _clearEvents();
         m_radio.releaseFromReset();
         delay(5);
@@ -521,17 +559,18 @@ private:
         }
 
         // Wait for the device to be ready to send a packet
-        unsigned long const t { millis() };
+
+        auto const t = EZRadio::Timeout::make(timeout_ms);
+
         RadioState s { radioState() };
         // Goes out of Tx/TxTune when packet is sent
         while ((s == RadioState::Tx) || (s == RadioState::TxTune) || (s == RadioState::Invalid)) {
-            if ((millis()-t) > timeout_ms || s >= RadioState::Unknown) {
+            if (t.expired() || s >= RadioState::Unknown) {
                 //debug("Timeout! "); debugln(radioStateText(s));
                 return false;
             }
 
-            //delay(1);
-            delayMicroseconds(100);
+            //delayMicroseconds(100);
 
             s = radioState();
         }
@@ -540,35 +579,38 @@ private:
     }
 
     //! Read a packet from RX FIFO, with size checks
-    ZetaRF::ReadPacketResult readPacket(typename EZRadioReply::FifoInfo const& fifoInfo, uint8_t* data, uint8_t byteCount)
+    ZetaRf::ReadPacketResult readPacket(typename EZRadioReply::FifoInfo const& fifoInfo, uint8_t* data, uint8_t bytesToRead)
     {
-        bool const dataRemaining { (fifoInfo.RX_FIFO_COUNT > byteCount) };
+        bool const dataRemaining { (fifoInfo.RX_FIFO_COUNT > bytesToRead) };
 
         debug("Read Packet: ");
         debug(byteCount); debug('/'); debugln(fifoInfo.RX_FIFO_COUNT);
 
-        if (byteCount > fifoInfo.RX_FIFO_COUNT) {
-            if (byteCount == m_packetLength) {
+        if (bytesToRead > fifoInfo.RX_FIFO_COUNT) {
+            if (bytesToRead == m_packetLength) {
                 // We shouldn't have not enough data when using the packet length.
                 // Reset RX FIFO to avoid looping and stale data.
                 m_radio.resetRxFifo();
                 m_dataAvailable = false;
             }
             debugln("Read Packet: Not Enough Data In Fifo");
-            return ZetaRF::ReadPacketResult::NotEnoughDataInFifo;
+            return {ZetaRf::ReadPacketResult::NotEnoughDataInFifo, fifoInfo.RX_FIFO_COUNT};
         }
 
-        m_radio.readRxFifo(data, byteCount);
+        m_radio.readRxFifo(data, bytesToRead);
 
         m_dataAvailable = dataRemaining;
 
-        return m_radio.succeeded() ? ZetaRF::ReadPacketResult::Success : ZetaRF::ReadPacketResult::RequestFailed;
+        if (m_radio.succeeded())
+            return {ZetaRf::ReadPacketResult::Success, bytesToRead};
+
+        return {ZetaRf::ReadPacketResult::RequestFailed, bytesToRead};
     }
 
 
     //! Ask to start listening on given channel with given packet length.
     //! Auto-returns to RX mode after receiving a valid packet.
-    //! For variable length packet configuration, set packetLegth to zero.
+    //! For variable length packet configuration, set packetLength to zero.
     bool startListening(uint8_t channel, uint8_t packetLength)
     {
         //debug("Listening on channel ");
@@ -576,18 +618,13 @@ private:
         //debug(" with packet size ");
         //debugln(packetLength);
 
-        // Start Receiving packet on channel, START immediately, Packet n bytes long
-        m_radio.startRx(channel, 0, packetLength,
-                        SI4455_CMD_START_RX_ARG_RXTIMEOUT_STATE_ENUM_NOCHANGE,
-                        SI4455_CMD_START_RX_ARG_RXVALID_STATE_ENUM_RX,
-                        SI4455_CMD_START_RX_ARG_RXINVALID_STATE_ENUM_RX);
-
+        m_radio.startRx(channel, packetLength);
         return m_radio.succeeded();
     }
 
     //! Ask to start listening on given channel with given packet length.
     //! Goes to Ready mode after receiving a valid packet. Call startListening again to listen for new packets.
-    //! For variable length packet configuration, set packetLegth to zero.
+    //! For variable length packet configuration, set packetLength to zero.
     bool startListeningSinglePacket(uint8_t channel, uint8_t packetLength)
     {
         //debug("Listening single packet on channel ");
@@ -595,12 +632,7 @@ private:
         //debug(" with packet size ");
         //debugln(packetLength);
 
-        // Start Receiving packet on channel, START immediately, Packet n bytes long
-        m_radio.startRx(channel, 0, packetLength,
-                        SI4455_CMD_START_RX_ARG_RXTIMEOUT_STATE_ENUM_NOCHANGE,
-                        SI4455_CMD_START_RX_ARG_RXVALID_STATE_ENUM_READY,
-                        SI4455_CMD_START_RX_ARG_RXINVALID_STATE_ENUM_RX);
-
+        m_radio.startRxForSinglePacket(channel, packetLength);
         return m_radio.succeeded();
     }
 
@@ -679,43 +711,60 @@ protected:
     uint8_t m_listeningChannel {0};
     //uint8_t m_transmittingChannel {0};
     uint8_t m_packetLength {0};
+    uint8_t m_maxRxPacketLength {0};
     bool m_dataAvailable {false};
 };
 
 
 template <typename Config, typename EZRadio>
-class ZetaRFConfig : public ZetaRFBase<EZRadio>
+class ZetaRfConfig : public ZetaRfBase<EZRadio>
 {
-    using Base = ZetaRFBase<EZRadio>;
+    using Base = ZetaRfBase<EZRadio>;
 public:
     using RadioState = typename EZRadio::RadioState;
     using Event = typename Base::Event;
     using Events = typename Base::Events;
 
-    //!! Load radio config
-    bool begin() {
+    //!! Load radio config with default packet length
+    bool begin()
+    {
+        if (!Base::beginWithConfigurationDataArray(Config::RadioConfigurationDataArray))
+            return false;
+
         if (Config::VariableLengthPacketConfiguration)
             Base::setPacketLength(0); // Variable length packets listen with packet size of zero
         else
             Base::setPacketLength(Config::PacketLength);
 
-        return Base::beginWithConfigurationDataArray(Config::RadioConfigurationDataArray);
+        Base::m_maxRxPacketLength = Config::PacketLength;
+        return true;
     }
 
-    //! Load radio config with the specified packet length (no effect in variable length packet mode).
-    bool beginWithPacketLengthOf(uint8_t packetLength) {
+    //! Load radio config with the specified packet length.
+    //! In variable length mode, sets the max length for RX packets.
+    bool beginWithPacketLengthOf(uint8_t packetLength)
+    {
+        if (!Base::beginWithConfigurationDataArray(Config::RadioConfigurationDataArray))
+            return false;
+
         if (Config::VariableLengthPacketConfiguration)
             Base::setPacketLength(0); // Variable length packets listen with packet size of zero
         else
             Base::setPacketLength(packetLength);
 
-        return Base::beginWithConfigurationDataArray(Config::RadioConfigurationDataArray);
+        // If the packet length is the default length, avoid the transaction
+        if (Config::PacketLength != packetLength)
+            Base::setMaxRxPacketLength(packetLength);
+        else
+            Base::m_maxRxPacketLength = packetLength;
+
+        return Base::m_radio.succeeded(); // setMaxRxPacketLength may fail
     }
 
 
     // ### PACKET SENDING METHODS ###
 
-    //! Send either fixed or variable length packet depending on radio config. Data is put in FIFO and set to send.
+    //! Send either fixed or variable length packet depending on radio config.
     //! For fixed length packet mode, if @a dataSize is less than the packet size, zeros are automatically appended.
     bool sendPacketOnChannel(uint8_t channel, uint8_t const* data, uint8_t dataSize, unsigned long timeoutForReady_ms = 100) {
         if (Config::VariableLengthPacketConfiguration)
@@ -724,15 +773,12 @@ public:
             return Base::sendFixedLengthPacketOnChannel(channel, data, dataSize, timeoutForReady_ms);
     }
 
-    //! Send fixed length packet, config length or user-set length is used. RX must be waiting for that length of packet. Data is put in FIFO and set to send.
+    //! Send fixed length packet, config length or user-set length is used. RX must be waiting for that length of packet.
     //! @a data must point to at least 'packet length' bytes.
     bool sendFixedLengthPacketOnChannel(uint8_t channel, uint8_t const* data, unsigned long timeoutForReady_ms = 100) {
         return Base::sendFixedLengthPacketOnChannel(channel, data, Base::m_packetLength, timeoutForReady_ms);
     }
 
-    //! Send fixed length packet with specified length. RX must be waiting for that length of packet. Data is put in FIFO and set to send.
-    //! If @a dataSize is less than the packet size, zeros are automatically appended.
-    //bool sendFixedLengthPacket(uint8_t channel, uint8_t const* data, uint8_t dataSize, unsigned long timeoutForReady_ms = 100)
 
     //! Send variable length packet. Data is put in FIFO and set to send.
     bool sendVariableLengthPacketOnChannel(uint8_t channel, uint8_t const* data, uint8_t dataSize, unsigned long timeoutForReady_ms = 100) {
@@ -743,27 +789,28 @@ public:
 
     // ### PACKET RECEIVING METHODS ###
 
-    //! Read either fixed or variable length packet depending on radio config
-    ZetaRF::ReadPacketResult readPacketTo(uint8_t* data, uint8_t byteCount) {
-        if (Config::VariableLengthPacketConfiguration) {
-            uint8_t packetDataLength {0};
-            return readVariableLengthPacketTo(data, byteCount, packetDataLength);
-        }
+    //! Read a packet with size set via beginWithPacketLengthOf().
+    //! Data ptr must point to a buffer large enough (at least packetLength() or maxRxPacketLength()).
+    ZetaRf::ReadPacketResult readPacketTo(uint8_t* data)
+    {
+        if (Config::VariableLengthPacketConfiguration)
+            return Base::readVariableLengthPacketTo(data, Base::m_maxRxPacketLength, nullptr);
         else
-            return Base::readFixedLengthPacketTo(data, byteCount);
+            return Base::readFixedLengthPacketTo(data, Base::m_packetLength);
     }
 
-    //! Read a packet with size set via beginWithPacketLengthOf(). @a data must point to a buffer large enough!
-    ZetaRF::ReadPacketResult readPacketTo(uint8_t* data) {
-        return readPacketTo(data, Base::m_packetLength);
+    ZetaRf::ReadPacketResult readFixedLengthPacketTo(uint8_t* data, uint8_t packetLength)
+    {
+        return Base::readFixedLengthPacketTo(data, packetLength);
     }
 
-    ZetaRF::ReadPacketResult readVariableLengthPacketTo(uint8_t* data, uint8_t maxByteCount, uint8_t& packetDataLength) {
-        //static_assert(Config::VariableLengthPacketConfiguration, "Radio configuration does not support variable length packets.");
-        return Base::readVariableLengthPacketTo(data, maxByteCount, packetDataLength);
+    ZetaRf::ReadPacketResult readVariableLengthPacketTo(uint8_t* data, uint8_t* rxPacketDataLength)
+    {
+        return Base::readVariableLengthPacketTo(data, Base::m_maxRxPacketLength, rxPacketDataLength);
     }
 
-    constexpr uint8_t defaultPacketLength() const {
+    constexpr uint8_t defaultPacketLength() const
+    {
         return Config::PacketLength;
     }
 };
@@ -774,37 +821,36 @@ public:
 #undef debugln
 
 
-
 // Default Arduino configs
 template<class ...Ts>
-using ZetaRF868 = ZetaRFConfig<ZetaRFConfigs::Config868_FixedLength_CRC_Preamble10_Sync4_Payload8, ZetaRFEZRadio::EZRadioSi4455<ZetaRFHal::ArduinoSpiHal<Ts...>> >;
+using ZetaRf868 = ZetaRfConfig<ZetaRfConfigs::Config868_FixedLength_CRC_Preamble10_Sync4_Payload8, ZetaRfEZRadio::EZRadioSi4455<ZetaRfHal::ArduinoSpiHal<Ts...>> >;
+
+template<class ...Ts>
+using ZetaRf433 = ZetaRfConfig<ZetaRfConfigs::Config433_FixedLength_CRC_Preamble10_Sync4_Payload8, ZetaRfEZRadio::EZRadioSi4455<ZetaRfHal::ArduinoSpiHal<Ts...>> >;
 
 // Variable Length
 template<class ...Ts>
-using ZetaRF868_VL = ZetaRFConfig<ZetaRFConfigs::Config868_VariableLength_CRC_Preamble10_Sync4_Payload8, ZetaRFEZRadio::EZRadioSi4455<ZetaRFHal::ArduinoSpiHal<Ts...>> >;
-
-
-template<class ...Ts>
-using ZetaRF_DRF4463F_433 = ZetaRFConfig<ZetaRFConfigs::Config433_Si4463_FixedLength_CRC_Preamble10_Sync4_Payload8,
-                                         ZetaRFEZRadioPro::EZRadioProSi446x<ZetaRFHal::ArduinoSpiHal<Ts...>> >;
-
+using ZetaRf868_VL = ZetaRfConfig<ZetaRfConfigs::Config868_VariableLength_CRC_Preamble10_Sync4_Payload8, ZetaRfEZRadio::EZRadioSi4455<ZetaRfHal::ArduinoSpiHal<Ts...>> >;
 
 template<class ...Ts>
-using ZetaRF_DRF4463F_868 = ZetaRFConfig<ZetaRFConfigs::Config868_Si4463_FixedLength_CRC_Preamble10_Sync4_Payload8,
-                                         ZetaRFEZRadioPro::EZRadioProSi446x<ZetaRFHal::ArduinoSpiHal<Ts...>> >;
+using ZetaRf433_VL = ZetaRfConfig<ZetaRfConfigs::Config433_VariableLength_CRC_Preamble10_Sync4_Payload8, ZetaRfEZRadio::EZRadioSi4455<ZetaRfHal::ArduinoSpiHal<Ts...>> >;
+
+
+// DRF4463F configs
+template<class ...Ts>
+using ZetaRf_DRF4463F_868 = ZetaRfConfig<ZetaRfConfigs::Config868_Si4463_FixedLength_CRC_Preamble10_Sync4_Payload8,
+                                         ZetaRfEZRadioPro::EZRadioProSi446x<ZetaRfHal::ArduinoSpiHal<Ts...>> >;
 
 template<class ...Ts>
-using ZetaRF_DRF4463F_868_256 = ZetaRFConfig<ZetaRFConfigs::Config868_Si4463_FixedLength_CRC_Preamble10_Sync4_Payload8_256,
-                                         ZetaRFEZRadioPro::EZRadioProSi446x<ZetaRFHal::ArduinoSpiHal<Ts...>> >;
-
-/*
+using ZetaRf_DRF4463F_433 = ZetaRfConfig<ZetaRfConfigs::Config433_Si4463_FixedLength_CRC_Preamble10_Sync4_Payload8,
+                                         ZetaRfEZRadioPro::EZRadioProSi446x<ZetaRfHal::ArduinoSpiHal<Ts...>> >;
+/* FIXME, check config
 template<class ...Ts>
-using ZetaRF433 = ZetaRFImpl<ZetaRFConfigs::Config433_FixedLength_CRC_Preamble10_Sync4_Payload8, Ts...>;
+using ZetaRF_DRF4463F_868_VL = ZetaRfConfig<ZetaRfConfigs::Config868_Si4463_VariableLength_CRC_Preamble10_Sync4_Payload8,
+                                         ZetaRfEZRadioPro::EZRadioProSi446x<ZetaRfHal::Stm32SpiHal<Ts...>> >;//*/
 
-// Configs using variable length packets
-template<class ...Ts>
-using ZetaRF868_VL = ZetaRFImpl<ZetaRFConfigs::Config868_VariableLength_CRC_Preamble10_Sync4_Payload8, Ts...>;
 
+// Long range config, not compatible with others or Zeta modules.
 template<class ...Ts>
-using ZetaRF433_VL = ZetaRFImpl<ZetaRFConfigs::Config433_VariableLength_CRC_Preamble10_Sync4_Payload8, Ts...>;
-//*/
+using ZetaRf_DRF4463F_868_LR = ZetaRfConfig<ZetaRfConfigs::Config868_Si4463_VariableLength_50kbps_CRC_Whitening_LongRange,
+                                            ZetaRfEZRadioPro::EZRadioProSi446x<ZetaRfHal::ArduinoSpiHal<Ts...>> >;

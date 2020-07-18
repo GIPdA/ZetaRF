@@ -111,7 +111,7 @@
 #define RF_GPIO_PIN_CFG 0x13, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00
 
 
-namespace ZetaRFConfigs {
+namespace ZetaRfConfigs {
 
 const uint8_t Config433_VariableLength_CRC_Preamble10_Sync4_Payload8::RadioConfigurationDataArray[]
 {
@@ -128,4 +128,4 @@ const uint8_t Config433_VariableLength_CRC_Preamble10_Sync4_Payload8::RadioConfi
     0x00
 };
 
-} // namespace ZetaRFConfigs
+} // namespace ZetaRfConfigs

@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-namespace ZetaRFHal {
+namespace ZetaRfHal {
 
 namespace Pin {
 
@@ -32,21 +32,21 @@ struct IrqPin : public IrqPinSelector, public Pin::PinSelector<PinNumber> {};
 template<int PinNumber>
 struct ClearToSendPin : public ClearToSendPinSelector, public Pin::PinSelector<PinNumber> {};
 
-} // namespace ZetaRFHal
+} // namespace ZetaRfHal
 
-namespace ZetaRF {
+namespace ZetaRf {
 
 template<int PinNumber>
-using CS = ZetaRFHal::ChipSelectPin<PinNumber>;
+using CS = ZetaRfHal::ChipSelectPin<PinNumber>;
 template<int PinNumber>
-using nSEL = ZetaRFHal::ChipSelectPin<PinNumber>;
+using nSEL = ZetaRfHal::ChipSelectPin<PinNumber>;
 template<int PinNumber>
-using SDN = ZetaRFHal::ShutdownPin<PinNumber>;
+using SDN = ZetaRfHal::ShutdownPin<PinNumber>;
 template<int PinNumber>
-using IRQ = ZetaRFHal::IrqPin<PinNumber>;
+using IRQ = ZetaRfHal::IrqPin<PinNumber>;
 template<int PinNumber>
-using nIRQ = ZetaRFHal::IrqPin<PinNumber>;
+using nIRQ = ZetaRfHal::IrqPin<PinNumber>;
 template<int PinNumber>
-using CTS = ZetaRFHal::ClearToSendPin<PinNumber>;
+using CTS = ZetaRfHal::ClearToSendPin<PinNumber>;
 
-} // namespace ZetaRF
+} // namespace ZetaRf
