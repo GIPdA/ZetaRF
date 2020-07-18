@@ -388,7 +388,7 @@ public:
         m_packetLength = newLength;
     }
 
-    //! Max packet length accepted by the RX modem. Not used for Si4455 (Zeta modules).
+    //! Max packet length accepted by the RX modem.
     uint8_t maxRxPacketLength() const
     {
         return m_maxRxPacketLength;
