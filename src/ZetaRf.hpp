@@ -175,10 +175,10 @@ public:
         m_events.clear();
     }
 
-    bool hasDataAvailble() const {
+    bool hasDataAvailable() const {
         return m_dataAvailable;
     }
-    bool hasDataAvailble() {
+    bool hasDataAvailable() {
         return m_dataAvailable;
     }
     bool available() const {
