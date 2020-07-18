@@ -709,6 +709,8 @@ protected:
 };
 
 
+//! Base class to use one of the provided radio configurations.
+//! Implements common methods for both fixed and variable length packets.
 template <typename Config, typename EZRadio>
 class ZetaRfConfig : public ZetaRfBase<EZRadio>
 {
@@ -734,7 +736,7 @@ public:
     }
 
     //! Load radio config with the specified packet length.
-    //! In variable length mode, sets the max length for RX packets.
+    //! In variable length mode, sets the max length for RX packets (only valid for Si446x).
     bool beginWithPacketLengthOf(uint8_t packetLength)
     {
         if (!Base::beginWithConfigurationDataArray(Config::RadioConfigurationDataArray))
@@ -814,6 +816,12 @@ public:
 #undef debugln
 
 
+// ########################################
+// #### Supported Radio configurations ####
+// ########################################
+
+// NOTE: Hardware CTS (ZetaRfHal::ArduinoSpiHal_Gpio1AsClearToSend) is not yet compatible with Si4455 (Zeta modules), ezradio_si4455.hpp need added support.
+
 #if defined(WIRINGPI)
     template<class ...Ts>
     using SpiHal = ZetaRfHal::RPiSpiHal<Ts...>;
@@ -824,18 +832,22 @@ public:
 
 // Default Zeta configs
 template<class ...Ts>
-using ZetaRf868 = ZetaRfConfig<ZetaRfConfigs::Config868_FixedLength_CRC_Preamble10_Sync4_Payload8, ZetaRfEZRadio::EZRadioSi4455<SpiHal<Ts...>> >;
+using ZetaRf868 = ZetaRfConfig<ZetaRfConfigs::Config868_FixedLength_CRC_Preamble10_Sync4_Payload8,
+                               ZetaRfEZRadio::EZRadioSi4455<SpiHal<Ts...>> >;
 
 template<class ...Ts>
-using ZetaRf433 = ZetaRfConfig<ZetaRfConfigs::Config433_FixedLength_CRC_Preamble10_Sync4_Payload8, ZetaRfEZRadio::EZRadioSi4455<SpiHal<Ts...>> >;
+using ZetaRf433 = ZetaRfConfig<ZetaRfConfigs::Config433_FixedLength_CRC_Preamble10_Sync4_Payload8,
+                               ZetaRfEZRadio::EZRadioSi4455<SpiHal<Ts...>> >;
 
 
 // Variable Length
 template<class ...Ts>
-using ZetaRf868_VL = ZetaRfConfig<ZetaRfConfigs::Config868_VariableLength_CRC_Preamble10_Sync4_Payload8, ZetaRfEZRadio::EZRadioSi4455<SpiHal<Ts...>> >;
+using ZetaRf868_VL = ZetaRfConfig<ZetaRfConfigs::Config868_VariableLength_CRC_Preamble10_Sync4_Payload8,
+                                  ZetaRfEZRadio::EZRadioSi4455<SpiHal<Ts...>> >;
 
 template<class ...Ts>
-using ZetaRf433_VL = ZetaRfConfig<ZetaRfConfigs::Config433_VariableLength_CRC_Preamble10_Sync4_Payload8, ZetaRfEZRadio::EZRadioSi4455<SpiHal<Ts...>> >;
+using ZetaRf433_VL = ZetaRfConfig<ZetaRfConfigs::Config433_VariableLength_CRC_Preamble10_Sync4_Payload8,
+                                  ZetaRfEZRadio::EZRadioSi4455<SpiHal<Ts...>> >;
 
 
 

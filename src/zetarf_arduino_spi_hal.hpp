@@ -173,6 +173,7 @@ public:
 
 // HAL with GPIO 1 as CTS output (inverted, low when CTS)
 // WARNING: the radio config needs to support it!
+// WARNING: Not yet compatible with Si4455 (Zeta modules), ezradio_si4455.hpp need added support.
 template <class TChipSelectPin, class TShutdownPin, class TIrqPin, class TClearToSendPin>
 class ArduinoSpiHal_Gpio1AsClearToSend : ArduinoSpiHal<TChipSelectPin, TShutdownPin, TIrqPin>
 {
