@@ -22,7 +22,7 @@ bool setup()
   std::cout << "Starting Zeta Rx VL..." << std::endl;
 
   // Initialize Zeta module with a specific packet size
-  if (!zeta.beginWithPacketLengthOf(MaxPacketLength)) {
+  if (!zeta.beginWithMaxPacketLengthOf(MaxPacketLength)) {
     std::cout << "ZetaRf begin failed. Check wiring?" << std::endl;
     return false;
   }
@@ -78,7 +78,7 @@ void loop()
       // DeviceBusy error usually means the radio module is unresponding and need a reset.
       std::cout << "Error: Device Busy! Restarting..." << std::endl;
 
-      if (!zeta.beginWithPacketLengthOf(MaxPacketLength)) {
+      if (!zeta.beginWithMaxPacketLengthOf(MaxPacketLength)) {
         std::cout << "ZetaRf begin failed after comm error." << std::endl;
         while (true);
       }
@@ -109,7 +109,7 @@ void loop()
   // Read incoming packet and print it
   if (zeta.available()) {
     uint8_t readSize {0};
-    if (zeta.readVariableLengthPacketTo((uint8_t*)data, MaxPacketLength, readSize)) {
+    if (zeta.readVariableLengthPacketTo((uint8_t*)data, &readSize)) {
 
       //zeta.restartListeningSinglePacket(); // If not in checkForEvent
 

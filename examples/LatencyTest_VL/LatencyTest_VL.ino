@@ -33,7 +33,7 @@ void setup()
 
     Serial.println("Starting ZetaRf Variable Length Latency Test...");
 
-    if (!zeta.begin()) {
+    if (!zeta.beginWithPacketLengthOf(ZetaRfPacketLength)) {
         Serial.println(F("ZetaRf begin failed. Check wiring?"));
         while (true);
     }
@@ -47,7 +47,7 @@ void setup()
     Serial.print("ID      : "); Serial.println(pi.ID);
     Serial.print("Customer: "); Serial.println(pi.CUSTOMER);
     Serial.print("Rom ID  : "); Serial.println(pi.ROMID);
-    Serial.print("Bond    : "); Serial.println(pi.BOND);
+    //Serial.print("Bond    : "); Serial.println(pi.BOND);
     Serial.print('\n');//*/
 
     zeta.startListeningSinglePacketOnChannel(4);
@@ -70,7 +70,7 @@ void loop()
             if (!runTest) {
                 // Send packet back ASAP
                 uint8_t readSize {0};
-                if (zeta.readVariableLengthPacketTo((uint8_t*)data, ZetaRfPacketLength, readSize)) {
+                if (zeta.readVariableLengthPacketTo((uint8_t*)data, &readSize)) {
                     zeta.sendVariableLengthPacketOnChannel(4, (const uint8_t*)data, readSize);
                 }
                 uint8_t rssi = zeta.latchedRssiValue();
@@ -87,7 +87,7 @@ void loop()
             } else {
                 // Print trip time
                 uint8_t readSize {0};
-                if (zeta.readVariableLengthPacketTo((uint8_t*)data, ZetaRfPacketLength, readSize)) {
+                if (zeta.readVariableLengthPacketTo((uint8_t*)data, &readSize)) {
                     unsigned long const rxTime = micros();
                     float const latency = (rxTime-txTime)/2;
 
@@ -133,7 +133,7 @@ void loop()
 
             //Serial.print("\nDevice state: ");
             //Serial.println(static_cast<int>(zeta.radioState()));
-            static int sendSize = ZetaRfPacketMinLength-1;
+            static size_t sendSize = ZetaRfPacketMinLength-1;
             if (++sendSize > ZetaRfPacketLength) {
                 sendSize = ZetaRfPacketMinLength;
             }

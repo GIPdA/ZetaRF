@@ -23,7 +23,7 @@ void setup()
   Serial.println("Starting Zeta TxRx VL...");
 
   // Initialize Zeta module with default packet size (0 for VL)
-  if (!zeta.begin()) {
+  if (!zeta.beginWithMaxPacketLengthOf(MaxPacketLength)) {
     Serial.println(F("ZetaRf begin failed. Check wiring?"));
     while(true);
   }
@@ -109,7 +109,7 @@ void loop()
   // Read incoming packet and print it
   if (zeta.available()) {
     uint8_t readSize {0};
-    if (zeta.readVariableLengthPacketTo((uint8_t*)data, MaxPacketLength, readSize)) {
+    if (zeta.readVariableLengthPacketTo((uint8_t*)data, &readSize)) {
 
       //zeta.restartListeningSinglePacket(); // If not in checkForEvent
 

@@ -41,7 +41,7 @@ void setup()
   Serial.print("ID      : "); Serial.println(pi.ID);
   Serial.print("Customer: "); Serial.println(pi.CUSTOMER);
   Serial.print("Rom ID  : "); Serial.println(pi.ROMID);
-  Serial.print("Bond    : "); Serial.println(pi.BOND);
+  //Serial.print("Bond    : "); Serial.println(pi.BOND);
   Serial.print('\n');
 
   /*auto const& fi = zeta.readFunctionRevisionInformation();
