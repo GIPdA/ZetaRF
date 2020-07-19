@@ -189,10 +189,10 @@ public:
         return m_dataAvailable;
     }
     bool available() const {
-        return hasDataAvailble();
+        return hasDataAvailable();
     }
     bool available() {
-        return hasDataAvailble();
+        return hasDataAvailable();
     }
 
     //! Reset device and load up the config.
@@ -687,7 +687,7 @@ private:
 
         if (events & Event::DetectedPostamble) debugln("Modem IT: DetectedPostamble");
         if (events & Event::RssiJump) debugln("Modem IT: RssiJump");
-        if (events & Event::Rssi) debugln("Modem IT: Rssi");
+        if (events & Event::RssiThreshold) debugln("Modem IT: RssiThreshold");
 
         if (events & Event::FifoUnderflowOrOverflowError) debugln("Chip IT: FIFO Underflow/Overflow");
         if (events & Event::CommandError) debugln("Chip IT: Command Error");
@@ -763,6 +763,13 @@ public:
         return Base::m_radio.succeeded(); // setMaxRxPacketLength may fail
     }
 
+    //! Load a variable length radio config with the specified max packet length.
+    //! Convenience method for variable length mode, it just calls beginWithPacketLengthOf(packetLength).
+    bool beginWithMaxPacketLengthOf(uint8_t packetLength)
+    {
+        return beginWithPacketLengthOf(packetLength);
+    }
+
 
     // ### PACKET SENDING METHODS ###
 
@@ -806,11 +813,19 @@ public:
         return Base::readFixedLengthPacketTo(data, packetLength);
     }
 
+    //! Read a variable length packet, max data size set by setMaxRxPacketLength() or beginWithMaxPacketLengthOf().
     ZetaRf::ReadPacketResult readVariableLengthPacketTo(uint8_t* data, uint8_t* rxPacketDataLength)
     {
         return Base::readVariableLengthPacketTo(data, Base::m_maxRxPacketLength, rxPacketDataLength);
     }
 
+    //! Read a variable length packet with at most 'maxDataSize' bytes.
+    ZetaRf::ReadPacketResult readVariableLengthPacketTo(uint8_t* data, uint8_t maxDataSize, uint8_t* rxPacketDataLength)
+    {
+        return Base::readVariableLengthPacketTo(data, maxDataSize, rxPacketDataLength);
+    }
+
+    //! Packet length defined in the radio config file.
     constexpr uint8_t defaultPacketLength() const
     {
         return Config::PacketLength;

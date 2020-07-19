@@ -99,6 +99,7 @@ To use the default radio config packet settings:
 To specify the packet length (fixed length) or the max packet length (variable length, VL):
 
 	zeta.beginWithPacketLengthOf(<packet length>)
+	zeta.beginWithMaxPacketLengthOf(<max packet length>) // For VL
 
 
 ### Event loop
@@ -189,7 +190,7 @@ To restart listening on the same channel as previously:
 
 Use `available()` or `hasDataAvailable()` while data is available to read.
 
-Common method to read either a fixed or variable length packet (max data size is the packet length, or for VL configs it is the max packet length set with `beginWithPacketLengthOf` or `setMaxRxPacketLength`):
+Common method to read either a fixed or variable length packet (max data size is the packet length, or for VL configs it is the max packet length set with `beginWithMaxPacketLengthOf` or `setMaxRxPacketLength`):
 
 	ZetaRf::ReadPacketResult readPacketTo(uint8_t* data)
 
@@ -199,7 +200,8 @@ To specifically read a fixed length packet:
 	
 To specifically read a variable length packet (optional, use the `rxPacketDataLength` pointer to get the received packet length (which is also in ReadPacketResult) )
 
-	ZetaRf::ReadPacketResult readVariableLengthPacketTo(uint8_t* data, uint8_t* rxPacketDataLength)
+	ZetaRf::ReadPacketResult readVariableLengthPacketTo(uint8_t* data, uint8_t* rxPacketDataLength) // Max data size is the max packet length set via beginWithMaxPacketLengthOf or setMaxRxPacketLength.
+	ZetaRf::ReadPacketResult readVariableLengthPacketTo(uint8_t* data, uint8_t maxDataSize, uint8_t* rxPacketDataLength)
 
 *Notes: Reads directly from FIFO. FIFO has a capacity of 64 bytes.*
 
