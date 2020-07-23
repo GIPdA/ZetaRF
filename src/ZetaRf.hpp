@@ -54,6 +54,7 @@ START_RX command with return state on timeout to RX may leave the chip unrespond
 #include "configs/config868_4463_fixedlength_crc_preamble10_sync4_payload8.hpp"
 //#include "configs/config868_4463_variablelength_crc_preamble10_sync4_payload8.hpp"
 #include "configs/config868_4463_variablelength_50k_crc_whitening_longrange.hpp"
+#include "configs/config868_4463_variablelength_10k_crc_whitening_longrange.hpp"
 
 
 #include <stdint.h>
@@ -892,5 +893,9 @@ using ZetaRf_DRF4463F_868_VL = ZetaRfConfig<ZetaRfConfigs::Config868_Si4463_Vari
 // Long range config, not compatible with others or Zeta modules.
 template<class ...Ts>
 using ZetaRf_DRF4463F_868_VL_LongRange = ZetaRfConfig<ZetaRfConfigs::Config868_Si4463_VariableLength_50kbps_CRC_Whitening_LongRange,
+                                                      ZetaRfEZRadioPro::EZRadioProSi446x<SpiHal<Ts...>> >;
+
+template<class ...Ts>
+using ZetaRf_DRF4463F_868_VL_10kLongRange = ZetaRfConfig<ZetaRfConfigs::Config868_Si4463_VariableLength_10kbps_CRC_Whitening_LongRange,
                                                       ZetaRfEZRadioPro::EZRadioProSi446x<SpiHal<Ts...>> >;
 
