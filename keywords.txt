@@ -12,6 +12,7 @@ Events
 
 begin	KEYWORD2
 beginWithPacketLengthOf	KEYWORD2
+beginWithMaxPacketLengthOf	KEYWORD2
 sendPacketOnChannel	KEYWORD2
 sendFixedLengthPacketOnChannel	KEYWORD2
 sendVariableLengthPacketOnChannel	KEYWORD2
