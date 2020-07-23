@@ -584,7 +584,7 @@ private:
         bool const dataRemaining { (fifoInfo.RX_FIFO_COUNT > bytesToRead) };
 
         debug("Read Packet: ");
-        debug(byteCount); debug('/'); debugln(fifoInfo.RX_FIFO_COUNT);
+        debug(bytesToRead); debug('/'); debugln(fifoInfo.RX_FIFO_COUNT);
 
         if (bytesToRead > fifoInfo.RX_FIFO_COUNT) {
             if (bytesToRead == m_packetLength) {
