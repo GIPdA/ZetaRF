@@ -8,6 +8,9 @@ ZetaRF ![Version 2.0.0](https://img.shields.io/badge/Version-2.0.0-blue.svg)
 ![Teensy 2 upto 4.1 including LC](https://img.shields.io/badge/Teensy-2_to_4.1,_LC-brown.svg)
 ![Raspberry Pi](https://img.shields.io/badge/Raspberry_Pi-ARM-black.svg)
 
+--
+### ZetaRf got updated to v2! Check your code, this is a breaking update from v1. See 'SimpleRxTx' example for a migration guide and the notes below.
+--
 
 ## About
 ZetaRf is an Arduino library for ZETA modules from [RF Solutions][2], which implements a Silicon Labs [Si4455][3] Low Current Sub-GHz Transceiver, and for Dorji DRF4463F modules which implements a Silicon Labs Si4463 Low Current Sub-GHz Transceiver.
@@ -17,9 +20,7 @@ Currently the 2 modules are **not** cross-compatible.
 RF Solutions does not provide ready to use sample code in C/C++ to use their ZETA modules directly, but either PIC ASM code or Arduino library if you interface your module with their CODEC chip. This library enables you to communicate directly with the ZETA module without the CODEC chip.
 Same for Doji modules.
 
-In this readme, *ZETA* or *ZETA module* will refer to any of the compatible modules, unless specified otherwise.
-
-ZETA modules communicates over high-speed SPI and 2 gpio.
+ZETA modules communicates over high-speed SPI (up to 10MHz) and 2 gpio.
 
 This library is based on code examples from Silicon Labs [Wireless Development Suite][1], largely modified.
 
@@ -27,11 +28,11 @@ This library is based on code examples from Silicon Labs [Wireless Development S
 
 --
 
-**Beta release, everything has not been tested yet!**
-
 **ZetaRf version 2**
 
 ZetaRf version 2 has breaking changes from the v1, as well as bug fixes and various improvements like the support for multiple radio configurations simultaneously.
+
+Please report any issue you find! :)
 
 
 > This library may not be directly compatible with any board implementing Si4455 chip! Currently it was only tested with the ZETA-868-SO and ZETA-433-SO modules from RF Solutions, and DRF4463F modules (868 and 433 MHz) from Dorji.
