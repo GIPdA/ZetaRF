@@ -443,6 +443,13 @@ public:
 
         return startListeningSinglePacket(m_listeningChannel, m_packetLength);
     }
+    bool restartListening()
+    {
+        if (!waitUntilOutOfTx(20))
+            return false;
+
+        return startListening(m_listeningChannel, m_packetLength);
+    }
 
 
     //! Space left in TX FIFO
