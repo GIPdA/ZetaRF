@@ -77,7 +77,7 @@ void loop()
       // DeviceBusy error usually means the radio module is unresponding and need a reset.
       Serial.println(F("Error: Device Busy! Restarting..."));
 
-      if (!zeta.begin()) {
+      if (!zeta.beginWithMaxPacketLengthOf(MaxPacketLength)) {
         Serial.println(F("ZetaRf begin failed after comm error."));
         while (true);
       }

@@ -33,7 +33,7 @@ void setup()
 
     Serial.println("Starting ZetaRf Variable Length Latency Test...");
 
-    if (!zeta.beginWithPacketLengthOf(ZetaRfPacketLength)) {
+    if (!zeta.beginWithMaxPacketLengthOf(ZetaRfPacketLength)) {
         Serial.println(F("ZetaRf begin failed. Check wiring?"));
         while (true);
     }
