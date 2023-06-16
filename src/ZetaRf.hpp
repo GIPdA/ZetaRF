@@ -657,6 +657,12 @@ private:
         printEvents(ev);
 #endif
 
+        if (ev & Event::CommandError) {
+            m_dataAvailable = false;
+            m_events = Event::DeviceBusy;
+            return true;
+        }
+
         m_events &= ~Event::CommandError;
         m_events |= ev;
 
