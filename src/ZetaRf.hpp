@@ -46,9 +46,11 @@ START_RX command with return state on timeout to RX may leave the chip unrespond
 // Include other configs here
 #include "configs/config868_fixedlength_crc_preamble10_sync4_payload8.hpp"
 #include "configs/config433_fixedlength_crc_preamble10_sync4_payload8.hpp"
+#include "configs/config915_fixedlength_crc_preamble10_sync4_payload8.hpp"
 
 #include "configs/config868_variablelength_crc_preamble10_sync4_payload8.hpp"
 #include "configs/config433_variablelength_crc_preamble10_sync4_payload8.hpp"
+#include "configs/config915_variablelength_crc_preamble10_sync4_payload8.hpp"
 
 #include "configs/config433_4463_fixedlength_crc_preamble10_sync4_payload8.hpp"
 #include "configs/config868_4463_fixedlength_crc_preamble10_sync4_payload8.hpp"
@@ -876,6 +878,11 @@ using ZetaRf433 = ZetaRfConfig<ZetaRfConfigs::Config433_FixedLength_CRC_Preamble
                                ZetaRfEZRadio::EZRadioSi4455<SpiHal<Ts...>> >;
 
 
+template<class ...Ts>
+using ZetaRf915 = ZetaRfConfig<ZetaRfConfigs::Config915_FixedLength_CRC_Preamble10_Sync4_Payload8,
+                               ZetaRfEZRadio::EZRadioSi4455<SpiHal<Ts...>> >;
+
+
 // Variable Length
 template<class ...Ts>
 using ZetaRf868_VL = ZetaRfConfig<ZetaRfConfigs::Config868_VariableLength_CRC_Preamble10_Sync4_Payload8,
@@ -883,6 +890,10 @@ using ZetaRf868_VL = ZetaRfConfig<ZetaRfConfigs::Config868_VariableLength_CRC_Pr
 
 template<class ...Ts>
 using ZetaRf433_VL = ZetaRfConfig<ZetaRfConfigs::Config433_VariableLength_CRC_Preamble10_Sync4_Payload8,
+                                  ZetaRfEZRadio::EZRadioSi4455<SpiHal<Ts...>> >;
+
+template<class ...Ts>
+using ZetaRf915_VL = ZetaRfConfig<ZetaRfConfigs::Config915_VariableLength_CRC_Preamble10_Sync4_Payload8,
                                   ZetaRfEZRadio::EZRadioSi4455<SpiHal<Ts...>> >;
 
 
