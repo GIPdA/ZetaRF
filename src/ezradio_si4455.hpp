@@ -320,8 +320,7 @@ public:
 
     void startVariableLengthTx(uint8_t channel, uint16_t length, RadioState stateWhenTxComplete)
     {
-        (void)length; // Zero length RX for variable length
-        startTx(channel, 0, stateWhenTxComplete);
+        startTx(channel, length+1, stateWhenTxComplete);
     }
 
 
