@@ -10,6 +10,8 @@
 
 #ifdef __AVR__
 #include "avr_helpers/type_traits.hpp"
+#else
+#include <type_traits>
 #endif
 
 #define ZETARF_SPI_SETTINGS_DEFAULT SPISettings(1000000UL, MSBFIRST, SPI_MODE0)
