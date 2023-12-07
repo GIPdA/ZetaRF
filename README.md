@@ -20,6 +20,8 @@ Currently the 2 modules are **not** cross-compatible.
 RF Solutions does not provide ready to use sample code in C/C++ to use their ZETA modules directly, but either PIC ASM code or Arduino library if you interface your module with their CODEC chip. This library enables you to communicate directly with the ZETA module without the CODEC chip.
 Same for Doji modules.
 
+> Beware: The new ZetaPlus modules from [RF Solutions][2] are not compatible! They use AT commands over UART or SPI via an intermediate microcontroller and the radio IC SPI bus is not accessible.
+
 ZETA modules communicates over high-speed SPI (up to 10MHz) and 2 gpio.
 
 This library is based on code examples from Silicon Labs [Wireless Development Suite][1], largely modified.
